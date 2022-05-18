@@ -26,8 +26,8 @@ def ensure_file(config_file):
     if not os.path.exists(config_file):
         with open(config_file, 'w') as f:
             f.write('[SERVER]\n')
-            f.write('bspwm-socket = /tmp/bspwm_0_0-socket\n')
-            f.write('program-socket = /tmp/desktop-automater\n')
+            f.write('bspwm-so = /tmp/bspwm_0_0-socket\n')
+            f.write('prog-so = /tmp/desktop-automater\n')
 
 
 def ensure_dir(file_path):
