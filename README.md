@@ -6,7 +6,7 @@ A program that controls Linux desktop environments and tiling window managers. I
 ## TODOs
 
 - [x] 1. ~~add config file~~
-- [ ] 2. clearly define API spec
+- [x] 2. ~~clearly define API spec~~
 - [ ] 3. write system service
 - [ ] 4. add plug-in loading system
 - [ ] 5. rewrite is rust (and or GO)
