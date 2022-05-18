@@ -36,9 +36,9 @@ def send(spath, payload, error_code=4):
 
 def open_program(spath, program, delay=0):
     """opens program"""
-    
+
     Popen(program, stdout=PIPE, stderr=PIPE)
-    sleep(.2 + int(delay))
+    sleep(int(delay) if delay else 0.2)
     return 0
 
 

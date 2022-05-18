@@ -24,7 +24,7 @@ def open_on_desktop(spath, program, desktop, delay=0) -> int:
     for cmd in prerun:
         com.send(spath, cmd)
 
-    com.open_program(spath, program, int(delay))
+    com.open_program(spath, program, delay)
 
     for cmd in postrun:
         com.send(spath, cmd)

@@ -17,6 +17,6 @@ PATH = "/tmp/desktop-automater"
 s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 s.connect(PATH)
 # s.connect()
-s.send(b"open-at pokemmo-launcher 9")
+s.send(b"open-at kitty 9")
 # print(f"got: {s.recv(1024)}")
 print(f"{s.recv(1024).decode('utf-8')}")
