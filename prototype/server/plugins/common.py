@@ -13,7 +13,7 @@ from time import sleep
 import socket
 
 
-SPATH = "/tmp/bspwm_0_0-socket"
+# SPATH = "/tmp/bspwm_0_0-socket"
 
 
 def to_api(cmd):
@@ -22,10 +22,10 @@ def to_api(cmd):
     return b''.join([bytes(tok, 'utf-8') + null for tok in cmd.split(' ')])
 
 
-def send(payload, error_code=4):
+def send(spath, payload, error_code=4):
     """send payload over the unix socket"""
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
-        s.connect(SPATH)
+        s.connect(spath)
         s.send(to_api(payload))
         res = s.recv(1024)
         # print(str(res))
@@ -34,11 +34,11 @@ def send(payload, error_code=4):
     return 0
 
 
-def open_program(program):
+def open_program(spath, program, delay=0):
     """opens program"""
-    # print("program", program)
+    
     Popen(program, stdout=PIPE, stderr=PIPE)
-    sleep(.2)
+    sleep(.2 + int(delay))
     return 0
 
 
