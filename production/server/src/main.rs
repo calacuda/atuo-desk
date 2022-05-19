@@ -9,6 +9,9 @@ use std::os::unix::net::{UnixListener, UnixStream};
 use std::thread;
 use unix_socket::Incoming;
 
+mod bspwm;
+mod common;
+
 fn load_config(
     config_file: &str,
 ) -> Result<HashMap<String, HashMap<String, Option<String>>>, Box<dyn Error>> {
@@ -34,51 +37,63 @@ fn get_servers(config_file: &str) -> HashMap<String, Option<String>> {
     };
 }
 
-fn handle_client(mut stream: UnixStream) {
-    // let (client, soc_adr) = match stream.accept() {
-    //     Ok((c, s)) => c, s,
-    //     Err(err) => panic!("got error : {:#?}", err),
-    // };
-    // stream.accept();
-    // stream.connect();
-    let mut response = String::new();
-    stream.set_nonblocking(false);
-    stream.read_to_string(&mut response).unwrap();
-    stream.shutdown(std::net::Shutdown::Read);
-    println!("{}", response);
-    stream.write_all(b"hello world").unwrap();
+fn write_shutdown(stream: &mut UnixStream, res: u8) {
+    if res > 0 {
+        stream
+            .write_all(&format!("{}{}", 7 as char, res).as_bytes())
+            .unwrap();
+    } else {
+        stream
+            .write_all(&format!("{} done", res).as_bytes())
+            .unwrap();
+    }
     stream.shutdown(std::net::Shutdown::Write);
+}
+
+fn read_command(stream: &mut UnixStream) -> String {
+    let mut command = String::new();
+    // stream.set_nonblocking(false);
+    stream.read_to_string(&mut command).unwrap();
+    stream.shutdown(std::net::Shutdown::Read);
+    return command;
+}
+
+fn switch_board(command: String, spath: &str) -> u8 {
+    let (cmd, args) = match command.split_once(" ") {
+        Some(cmd_args) => cmd_args.to_owned(),
+        None => (command.as_str(), ""),
+    };
+    return match cmd {
+        "open-here" => common::open_program(args),
+        "focus-on" => bspwm::focus_on(spath, args),
+        "move-to" => bspwm::move_to(spath, args),
+        "close-focused" => bspwm::close_focused(spath),
+        "open-at" => bspwm::open_on_desktop(spath, args),
+        _ => 1,
+    };
+}
+
+fn handle_client(mut stream: UnixStream, spath: &str) {
+    let command = read_command(&mut stream);
+    // println!("{}", command);
+
+    // handle comand here
+    // let res: u8 = 0;
+    let res: u8 = switch_board(command, spath);
+    write_shutdown(&mut stream, res);
     drop(stream)
 }
 
-fn recv_loop(progr: &str, bspwm: &str) -> std::io::Result<()> {
+fn recv_loop(progr: &str, bspwm: String) -> std::io::Result<()> {
     println!("recv_loop");
     let listener = UnixListener::bind(progr)?;
 
-    // loop {
-    //     println!("loop");
-    //     match listener.accept() {
-    //         Ok((mut socket, addr)) => {
-    //             println!("{:#?}", socket);
-    //             let mut response = String::new();
-    //             socket.read_to_string(&mut response)?;
-    //             // socket.write_all(b"hello world")?;
-    //             println!("{}", response);
-    //         }
-    //         Err(e) => {
-    //             println!("accept function failed: {:?}", e);
-    //             break;
-    //         }
-    //     }
-    // }
-
     for stream in listener.incoming() {
-        // println!("for");
-        // listener.accept();
         match stream {
             Ok(stream) => {
                 /* connection succeeded */
-                thread::spawn(|| handle_client(stream));
+                let tmp_bspwm = bspwm.clone();
+                thread::spawn(move || handle_client(stream, &tmp_bspwm));
             }
             Err(err) => {
                 println!("{:#?}", err);
@@ -93,7 +108,7 @@ fn recv_loop(progr: &str, bspwm: &str) -> std::io::Result<()> {
     Ok(())
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     let configs: HashMap<String, Option<String>> =
         get_servers(&"~/.config/desktop-automater/config.ini");
     let (prog_so, bspwm_so) = match (configs.get("prog-so"), configs.get("bspwm-so")) {
@@ -118,8 +133,15 @@ fn main() {
     // println!("{:#?}", configs);
     // println!("progr {}\nbspwm {}", prog_so, bspwm_so);
     if std::fs::metadata(&prog_so).is_ok() {
-        std::fs::remove_file(&prog_so);
-        // .with_context(|| format!("could not delete previous socket at {:?}", &progr_so))?;
+        std::fs::remove_file(&prog_so).expect(&format!(
+            "could not delete previous socket at {:?}",
+            &prog_so
+        ));
     }
-    recv_loop(&prog_so, &bspwm_so);
+    match recv_loop(&prog_so, bspwm_so) {
+        Ok(_) => {}
+        Err(e) => println!("[ERROR] {}", e),
+    }
+    // println!("Goodbye!");
+    Ok(())
 }
