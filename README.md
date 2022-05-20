@@ -29,7 +29,7 @@ Desktop automator designed to allow programmatic control of the desktop environm
 (things planned for the immediate/foreseeable future)
 
 - [x] 1. add config file
-- [ ] 2. write system service
+- [x] 2. write system service
 - [x] 3. rewrite server in rust
 - [ ] 4. add support for KDE
 - [ ] 5. change between full screen, tiled, floating, and pseudo_tiled.
@@ -41,7 +41,7 @@ Desktop automator designed to allow programmatic control of the desktop environm
 
 - [x] 1. make prototype/proof of concept.
 - [x] 2. rewrite in Rust/Golang. (this was done in Rust)
-- [ ] 3. add misc features. <= we are here. (everything below this is subject to change)
-- [ ] 4. write systemd service
-- [ ] 5. finding BSPWM node by name
+- [x] 3. add misc features.
+- [x] 4. write systemd service
+- [ ] 5. add mycroft support <= we are working on this. (everything below this is subject to change)
 - [ ] 6. add support for KDE.
