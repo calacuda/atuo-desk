@@ -41,6 +41,7 @@ Desktop automator designed to allow programmatic control of the desktop environm
 
 - [x] 1. make prototype/proof of concept.
 - [x] 2. rewrite in Rust/Golang. (this was done in Rust)
-- [ ] 3. write systemd service <= we are working to get here. (everything below this is subject to change)
-- [ ] 4. finding BSPWM node by name
-- [ ] 5. add support for KDE.
+- [ ] 3. add misc features. <= we are here. (everything below this is subject to change)
+- [ ] 4. write systemd service
+- [ ] 5. finding BSPWM node by name
+- [ ] 6. add support for KDE.
