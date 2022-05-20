@@ -19,6 +19,7 @@ s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 s.connect(PATH)
 # s.connect()
 s.send(b"open-at kitty 9")
+# s.send(b"open-at kitty 9")
 s.shutdown(1)  # tells the server im done sending data and it can reply now.
 # s.setblocking(True)
 print(f"{s.recv(1024).decode('utf-8')}")

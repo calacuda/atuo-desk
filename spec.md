@@ -11,12 +11,18 @@ once a command is sent to the server it will replay with an exit code (see below
 ## universal commands:
 |command | arguments | description |
 |--------|-----------|-------------|
-|open-here | delay(optional), cmd | runs command (or launches the program) and then waits delay (default delay is 0.2)
+|open-here | cmd | runs command (or launches the program) and then waits delay (default delay is 0.2)
+|poweroff | N/A | powers off the system via systemctl poweroff
+|hibernate | N/A | hibernates the system via systemctl hibernate
+|reboot | N/A | reboots the system via systemctl reboot
+|sleep OR suspend | N/A | suspends the system via systemctl suspend-then-hibernate
+|lock | N/A | locks the system via loginctl lock-session
+|logout | N/A | logs out of the current session via loginctl
 
 ## bspwm commands:
 |command | arguments | description |
 |--------|-----------|-------------|
-|open-at | desktop, delay(optional), program | runs a program in a tmp desktop then moves it to the desktop arg. delay can be increased to ensure that the program gets to the desired desktop.  
+|open-at | desktop, program | runs a program in a tmp desktop then moves it to the desktop arg. delay can be increased to ensure that the program gets to the desired desktop.  
 |close-focused | N/A | closes the currently focused node (window).
 |move-to | desktop | moves the currently focused node to the specified desktop
 |focus-on | desktop | switches focus to the specified desktop

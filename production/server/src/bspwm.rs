@@ -1,44 +1,46 @@
 use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::{thread, time};
 
-pub fn open_on_desktop(spath: &str, raw_args: &str) -> u8 {
-    print!("[LOG] running progarm on deskotp: ");
+fn query(spath: &str, message: &str) -> String {
+    match UnixStream::connect(spath) {
+        Ok(mut stream) => {
+            match stream.write_all(&make_API(message)) {
+                Ok(_) => {}
+                Err(e) => println!("[ERROR] couldn't not send data to BSPWM: {}", e),
+            };
+            let mut res = String::new();
+            stream.read_to_string(&mut res);
+            return res;
+        }
+        Err(e) => {
+            println!(
+                "[ERROR] could not connect to bspwm (are you usign the right socket file?): {}",
+                e
+            );
+            String::new()
+        }
+    }
+}
 
+pub fn open_on_desktop(spath: &str, raw_args: &str) -> u8 {
     //get args
     let args = get_n_args(2, raw_args);
     if args.last() == Some(&String::new()) {
         return 7;
     }
-    println!("{} {}", args[0], args[1]);
 
-    //make tmp desktop
-    //move to tmp desktop
-    let prelaunch = (
-        send(spath, "monitor -a Desktop"),
-        send(spath, "desktop Desktop -f"),
-    );
-    println!("pre {:?}", prelaunch);
+    println!("[LOG] running {} on desktop {}:", args[0], args[1]);
 
-    if prelaunch.0 + prelaunch.1 > 0 {
+    if send(spath, &format!("desktop {} -f", args[1])) > 0 {
         return 3;
     }
-    //open program
-    // println!("[LOG] running: {}", args);
-    let mut process = Command::new(&args[0]).spawn(); //.expect("failed to execute process");
-    thread::sleep(time::Duration::from_millis(250));
-    // println!("[LOG] ran {:?}", process);
-    //move to spath, destination
-    //kill tmp_desktop
-    let postlaunch = (
-        send(spath, &format!("node -d {} --follow", args[1])),
-        send(spath, "desktop Desktop --remove"),
-    );
-    println!("post {:?}", postlaunch);
-    if postlaunch.0 + postlaunch.1 > 0 {
-        return 3;
-    }
+
+    let mut process = Command::new(&args[0])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn();
 
     return 0;
 }
@@ -98,12 +100,12 @@ fn make_API(message: &str) -> Vec<u8> {
     return res;
 }
 
-pub fn send(spath: &str, message: &str) -> u8 {
+fn send(spath: &str, message: &str) -> u8 {
     match UnixStream::connect(spath) {
         Ok(mut stream) => {
             match stream.write_all(&make_API(message)) {
                 Ok(_) => {}
-                Err(e) => println!("[ERROR] count not send data to BSPWM: {}", e),
+                Err(e) => println!("[ERROR] couldn't not send data to BSPWM: {}", e),
             };
             let mut res: Vec<u8> = Vec::new();
             stream.read_to_end(&mut res);

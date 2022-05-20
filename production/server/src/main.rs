@@ -11,6 +11,7 @@ use unix_socket::Incoming;
 
 mod bspwm;
 mod common;
+mod power;
 
 fn load_config(
     config_file: &str,
@@ -69,6 +70,12 @@ fn switch_board(command: String, spath: &str) -> u8 {
         "move-to" => bspwm::move_to(spath, args),
         "close-focused" => bspwm::close_focused(spath),
         "open-at" => bspwm::open_on_desktop(spath, args),
+        "poweroff" => power::power_off(),
+        "hibernate" => power::hibernate(),
+        "reboot" => power::reboot(),
+        "sleep" | "suspend" => power::sleep(),
+        "lock" => power::lock(),
+        "logout" => power::logout(),
         _ => 1,
     };
 }

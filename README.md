@@ -26,6 +26,8 @@ Desktop automator designed to allow programmatic control of the desktop environm
 - [x] 3. rewrite is rust (and or GO)
 - [ ] 4. add support for KDE
 - [ ] 5. change between full screen, tiled, floating, and pseudo_tiled.
+- [ ] 6. power control (sleep, hibernate, poweroff, lock, etc)
+- [ ] 7. system restart service
 
 ## development history and schedule:
 
