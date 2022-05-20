@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 configparser = "3.0.0"
 shellexpand = "2.1.0"
+rdev = "0.5.1"

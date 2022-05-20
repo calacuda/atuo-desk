@@ -67,6 +67,7 @@ fn switch_board(command: String, spath: &str) -> u8 {
     };
     return match cmd {
         "open-here" => common::open_program(args),
+        "screen-shot" => common::screen_shot(),
         "focus-on" => bspwm::focus_on(spath, args),
         "move-to" => bspwm::move_to(spath, args),
         "close-focused" => bspwm::close_focused(spath),
@@ -86,8 +87,8 @@ fn switch_board(command: String, spath: &str) -> u8 {
         "stop-track" => common::media::stop(),
         "next-track" => common::media::next_track(),
         "last-track" => common::media::last_track(),
-        "inc-bl" => common::xbacklight::inc_bright(args),
-        "dec-bl" => common::xbacklight::dec_bright(args),
+        "inc-bl" => common::backlight::inc_bright(args),
+        "dec-bl" => common::backlight::dec_bright(args),
         _ => 1,
     };
 }

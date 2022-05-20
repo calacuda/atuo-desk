@@ -9,7 +9,7 @@ fn xbacklight(dir: &str, amount: &str) -> u8 {
     return match Command::new("xbacklight").args([dir, amount]).output() {
         Ok(_) => 0,
         Err(e) => {
-            println!("[ERROR] xbacklight {} error: {}", arg, e);
+            println!("[ERROR] xbacklight {}, {} error: {}", dir, amount, e);
             4
         }
     };
