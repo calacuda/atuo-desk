@@ -28,7 +28,7 @@ pub fn open_on_desktop(spath: &str, raw_args: &str) -> u8 {
     // println!("[LOG] running: {}", args);
     let mut process = Command::new(&args[0]).spawn(); //.expect("failed to execute process");
     thread::sleep(time::Duration::from_millis(250));
-    println!("[LOG] ran {:?}", process);
+    // println!("[LOG] ran {:?}", process);
     //move to spath, destination
     //kill tmp_desktop
     let postlaunch = (

@@ -35,7 +35,10 @@ def prepare(cmd):
 def main():
     raw_cmd = ' '
     while raw_cmd:
-        raw_cmd = input("~~> ")
+        try:
+            raw_cmd = input("~~> ")
+        except KeyboardInterrupt:
+            return
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
             s.connect(PATH)
             s.send(to_api(prepare(raw_cmd)))

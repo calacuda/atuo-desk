@@ -1,5 +1,4 @@
-# Spec Sheet
-
+# Specifications and technical details
 ----
 
 ## sending commands to the server:
@@ -33,3 +32,20 @@ once a command is sent to the server it will replay with an exit code (see below
 |5    |  error connecting to BSPWM socket
 |6    |  BSPWM error
 |7    |  too few arguments
+
+---
+# design note:
+---
+## plug-in system:
+
+it will need some standard for passing data to it.
+
+options for data passing:
+
+- command line arguments for executables (either text or bin). (easiest and allows for abandoning python)
+- ~~if using python, we can define a consistent entry point and wrap other languages as python modules. (python reliant)~~
+
+Ideas:
+
+- executable scripts/binaries that get sourced at run time and stored in a hash map.
+- files that contain list of the commands to be sent over the socket.
