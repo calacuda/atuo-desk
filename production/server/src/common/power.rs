@@ -6,6 +6,7 @@ use std::{thread, time};
  * TODOs:
  *
  * add configurability for power commands.
+ *
  */
 
 pub fn power_off() -> u8 {

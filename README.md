@@ -15,6 +15,9 @@ Desktop automator designed to allow programmatic control of the desktop environm
 ## dependencies:
 - systemd
 - loginctl
+- alsa (plans to remove in future)
+- playerctl
+- xbacklight (plans to remove in future)
 
 ## planned features:
 - [ ] 1. write a [Mycroft](https://mycroft-ai.gitbook.io/docs/) skill to add a voice control feature
@@ -25,18 +28,19 @@ Desktop automator designed to allow programmatic control of the desktop environm
 ## TODOs:
 (things planned for the immediate/foreseeable future)
 
-- [x] 1. ~~add config file~~
+- [x] 1. add config file
 - [ ] 2. write system service
-- [x] 3. rewrite is rust (and or GO)
+- [x] 3. rewrite server in rust
 - [ ] 4. add support for KDE
 - [ ] 5. change between full screen, tiled, floating, and pseudo_tiled.
-- [ ] 6. power control (sleep, hibernate, poweroff, lock, etc)
-- [ ] 7. system restart service
+- [x] 6. power control (sleep, hibernate, poweroff, lock, etc)
+- [ ] ~~7. system restart service~~
+- [x] 8. add volume and media controls
 
 ## development history and schedule:
 
 - [x] 1. make prototype/proof of concept.
 - [x] 2. rewrite in Rust/Golang. (this was done in Rust)
-- [ ] 3. write systemd service <= we are here. (everything below this is subject to change)
+- [ ] 3. write systemd service <= we are working to get here. (everything below this is subject to change)
 - [ ] 4. finding BSPWM node by name
 - [ ] 5. add support for KDE.

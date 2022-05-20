@@ -18,6 +18,17 @@ once a command is sent to the server it will replay with an exit code (see below
 |sleep OR suspend | N/A | suspends the system via systemctl suspend-then-hibernate
 |lock | N/A | locks the system via loginctl lock-session
 |logout | N/A | logs out of the current session via loginctl
+|vol-up | percent | raises system volume by percent
+|vol-down | percent | lowers system volume by percent
+|mute | N/A | mutes system audio
+|play/pause | N/A | toggles from play to pause and vice versa  
+|play-track | N/A | plays paused media
+|pause-track | N/A | pauses playing audio
+|stop-track | N/A | stops current media
+|next-track | N/A | skips to next media
+|last-track | N/A | skips to last media
+|inc-bl | percent | increases the screen backlight brightness by percent
+|dec-bl | percent | decreases the screen backlight brightness by percent
 
 ## bspwm commands:
 |command | arguments | description |

@@ -51,14 +51,7 @@ fn get_n_args(n: i32, arg_str: &str) -> Vec<String> {
     }
     let mut args = Vec::new();
     let mut tmp_arg_str = arg_str.to_string();
-
-    // for _ in 0..n {
-    //     let (arg1, arg2) = get_one_arg(&tmp_arg_str);
-    //     tmp_arg_str = arg2.to_string().to_owned();
-    //     args.push(arg1.to_string());
-    // }
-    let a = arg_str.split_once(" "); // get_one_arg(arg_str)
-                                     // args.push(arg1.to_string());
+    let a = arg_str.split_once(" ");
     match a {
         Some((arg1, arg2)) => {
             args.push(arg1.to_string());
@@ -66,11 +59,6 @@ fn get_n_args(n: i32, arg_str: &str) -> Vec<String> {
         }
         None => args.push(arg_str.to_string()),
     };
-
-    // if args.last() == Some(&String::new()) {
-    //     println!("[ERROR] too few args given:")
-    // }
-
     return args;
 }
 

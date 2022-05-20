@@ -7,11 +7,12 @@ use std::io::Read;
 use std::io::Write;
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::thread;
-use unix_socket::Incoming;
+// use unix_socket::Incoming;
 
 mod bspwm;
+// mod common;
 mod common;
-mod power;
+// mod power;
 
 fn load_config(
     config_file: &str,
@@ -70,12 +71,23 @@ fn switch_board(command: String, spath: &str) -> u8 {
         "move-to" => bspwm::move_to(spath, args),
         "close-focused" => bspwm::close_focused(spath),
         "open-at" => bspwm::open_on_desktop(spath, args),
-        "poweroff" => power::power_off(),
-        "hibernate" => power::hibernate(),
-        "reboot" => power::reboot(),
-        "sleep" | "suspend" => power::sleep(),
-        "lock" => power::lock(),
-        "logout" => power::logout(),
+        "poweroff" => common::power::power_off(),
+        "hibernate" => common::power::hibernate(),
+        "reboot" => common::power::reboot(),
+        "sleep" | "suspend" => common::power::sleep(),
+        "lock" => common::power::lock(),
+        "logout" => common::power::logout(),
+        "vol-up" => common::media::volume_up(args),
+        "vol-down" => common::media::volume_down(args),
+        "mute" => common::media::mute(),
+        "play/pause" => common::media::play_pause(),
+        "play-track" => common::media::play(),
+        "pause-track" => common::media::pause(),
+        "stop-track" => common::media::stop(),
+        "next-track" => common::media::next_track(),
+        "last-track" => common::media::last_track(),
+        "inc-bl" => common::xbacklight::inc_bright(args),
+        "dec-bl" => common::xbacklight::dec_bright(args),
         _ => 1,
     };
 }
