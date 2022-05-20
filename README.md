@@ -12,6 +12,10 @@ Desktop automator designed to allow programmatic control of the desktop environm
 - consistent API and endpoint makes controlling the system and some programs easy.
 - it's programmatic so you can write your own scripts to control the WM/DE and some common programs.
 
+## dependencies:
+- systemd
+- loginctl
+
 ## planned features:
 - [ ] 1. write a [Mycroft](https://mycroft-ai.gitbook.io/docs/) skill to add a voice control feature
 - [ ] 2. add basic spotify support
