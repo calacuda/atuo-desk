@@ -37,10 +37,19 @@ pub fn open_on_desktop(spath: &str, raw_args: &str) -> u8 {
         return 3;
     }
 
+    let init_nodes_n = query(spath, "query -N -d").len();
+
     let mut process = Command::new(&args[0])
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn();
+
+    let t = time::Duration::from_millis(100);
+
+    while init_nodes_n == query(spath, "query -N -d").len() {
+        println!("[LOG] sleeping...");
+        thread::sleep(t);
+    }
 
     return 0;
 }
