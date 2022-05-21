@@ -37,7 +37,7 @@ Desktop automator designed to allow programmatic control of the desktop environm
 - [x] power control (sleep, hibernate, poweroff, lock, etc)
 - [ ] ~~system restart service~~
 - [x] add volume and media controls
-- [ ] add simple xrandr controls
+- [x] add simple xrandr/autorandr controls
 
 ## development history and schedule:
 
