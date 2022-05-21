@@ -1,5 +1,8 @@
+use shellexpand;
+use std::env::set_current_dir;
 use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;
+use std::path::Path;
 use std::process::{Command, Stdio};
 use std::{thread, time};
 
@@ -31,6 +34,8 @@ pub fn open_on_desktop(spath: &str, raw_args: &str) -> u8 {
         return 7;
     }
 
+    set_current_dir(Path::new(&shellexpand::tilde("~/").to_string()));
+
     println!("[LOG] running {} on desktop {}:", args[0], args[1]);
 
     if send(spath, &format!("desktop {} -f", args[1])) > 0 {
@@ -39,10 +44,20 @@ pub fn open_on_desktop(spath: &str, raw_args: &str) -> u8 {
 
     let init_nodes_n = query(spath, "query -N -d").len();
 
-    let mut process = Command::new(&args[0])
+    let process = match Command::new(&args[0])
         .stdout(Stdio::null())
         .stderr(Stdio::null())
-        .spawn();
+        .spawn()
+    {
+        Ok(_) => {
+            println!("[LOG] program {} launched", args[0]);
+            0
+        }
+        Err(e) => {
+            println!("[ERROR] program {} could not be launched: {}", args[0], e);
+            4
+        }
+    };
 
     let t = time::Duration::from_millis(100);
 
@@ -51,7 +66,7 @@ pub fn open_on_desktop(spath: &str, raw_args: &str) -> u8 {
         thread::sleep(t);
     }
 
-    return 0;
+    return process;
 }
 
 fn get_n_args(n: i32, arg_str: &str) -> Vec<String> {
