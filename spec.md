@@ -37,6 +37,7 @@ once a command is sent to the server it will replay with an exit code (see below
 |close-focused | N/A | closes the currently focused node (window).
 |move-to | desktop | moves the currently focused node to the specified desktop
 |focus-on | desktop | switches focus to the specified desktop
+|add-mon | monitor | turns monitor on (does not position use `add-mon-r` or similar)
 
 ## exit Code:
 |code | description |

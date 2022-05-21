@@ -20,22 +20,24 @@ Desktop automator designed to allow programmatic control of the desktop environm
 - xbacklight (plans to remove in future)
 
 ## planned features:
+(for the future)
+
 - [ ] 1. write a [Mycroft](https://mycroft-ai.gitbook.io/docs/) skill to add a voice control feature
-- [ ] 2. add basic spotify support
-- [ ] 3. add VERY basic web browser control. (prob using the gecko/chromium drives. this would make it easier to support firefox/chromium and most derivatives with the same code base.)
-- [ ] 4. support for finding bspwm nodes by name. (so one could say, "go back to alacritty/firefox" in mycroft.)
+- [ ] 2. add VERY basic web browser control. (prob using the gecko/chromium drives. this would make it easier to support firefox/chromium and most derivatives with the same code base.)
+- [ ] 3. support for finding bspwm nodes by name. (so one could say, "go back to alacritty/firefox" in mycroft.)
 
 ## TODOs:
 (things planned for the immediate/foreseeable future)
 
-- [x] 1. add config file
-- [x] 2. write system service
-- [x] 3. rewrite server in rust
-- [ ] 4. add support for KDE
-- [ ] 5. change between full screen, tiled, floating, and pseudo_tiled.
-- [x] 6. power control (sleep, hibernate, poweroff, lock, etc)
-- [ ] ~~7. system restart service~~
-- [x] 8. add volume and media controls
+- [x] add config file
+- [x] write system service
+- [x] rewrite server in rust
+- [ ] add support for KDE
+- [ ] change between full screen, tiled, floating, and pseudo_tiled.
+- [x] power control (sleep, hibernate, poweroff, lock, etc)
+- [ ] ~~system restart service~~
+- [x] add volume and media controls
+- [ ] add simple xrandr controls
 
 ## development history and schedule:
 

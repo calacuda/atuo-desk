@@ -89,6 +89,7 @@ fn switch_board(command: String, spath: &str) -> u8 {
         "last-track" => common::media::last_track(),
         "inc-bl" => common::backlight::inc_bright(args),
         "dec-bl" => common::backlight::dec_bright(args),
+        "add-monitor" => common::xrandr::add_monitor(args),
         _ => 1,
     };
 }

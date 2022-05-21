@@ -8,6 +8,7 @@ use std::{thread, time};
 pub mod backlight;
 pub mod media;
 pub mod power;
+pub mod xrandr;
 
 pub fn open_program(program: &str) -> u8 {
     println!("[LOG] running: {}", program);
