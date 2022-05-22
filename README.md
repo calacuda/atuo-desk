@@ -38,6 +38,7 @@ Desktop automator designed to allow programmatic control of the desktop environm
 - [ ] ~~system restart service~~
 - [x] add volume and media controls
 - [x] add simple xrandr/autorandr controls
+- [ ] add pass through for querying BSPWM.
 
 ## development history and schedule:
 

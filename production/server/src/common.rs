@@ -10,6 +10,12 @@ pub mod media;
 pub mod power;
 pub mod xrandr;
 
+/*
+ * TODOs:
+ * - make the open_program routine like that of open_on_desktop form the BSPWM mod
+ *
+ */
+
 pub fn open_program(program: &str) -> u8 {
     println!("[LOG] running: {}", program);
     let mut process = Command::new(program)

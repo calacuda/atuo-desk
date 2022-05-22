@@ -42,7 +42,7 @@ fn get_servers(config_file: &str) -> HashMap<String, Option<String>> {
 fn write_shutdown(stream: &mut UnixStream, res: u8) {
     if res > 0 {
         stream
-            .write_all(&format!("{}{}", 7 as char, res).as_bytes())
+            .write_all(&format!("{}{}", res as char, res).as_bytes())
             .unwrap();
     } else {
         stream
