@@ -106,7 +106,7 @@ fn handle_client(mut stream: UnixStream, spath: &str) {
 }
 
 fn recv_loop(progr: &str, bspwm: String) -> std::io::Result<()> {
-    println!("recv_loop");
+    // println!("recv_loop");
     let listener = UnixListener::bind(progr)?;
 
     for stream in listener.incoming() {
