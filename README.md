@@ -41,6 +41,7 @@ Desktop automator designed to allow programmatic control of the desktop environm
 - [ ] add pass through for querying BSPWM.
 - [ ] add better documentation.
 - [ ] make layout configured with yaml and make them idempotent
+- [ ] add multi token commands. 
 
 ## development history and schedule:
 
