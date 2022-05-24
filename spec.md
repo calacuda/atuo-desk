@@ -29,6 +29,7 @@ once a command is sent to the server it will replay with an exit code (see below
 |last-track | N/A | skips to last media|
 |inc-bl | percent | increases the screen backlight brightness by percent|
 |dec-bl | percent | decreases the screen backlight brightness by percent|
+|load-layout | layout | is a .layout file in ~/.config/desktop-automater/layouts/ dir, it contains a new line separated list of commands to be run. (under active development))
 
 ## bspwm commands:
 |command | arguments | description |

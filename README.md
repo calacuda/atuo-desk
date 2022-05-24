@@ -39,8 +39,8 @@ Desktop automator designed to allow programmatic control of the desktop environm
 - [x] add volume and media controls
 - [x] add simple xrandr/autorandr controls
 - [ ] add pass through for querying BSPWM.
-- [ ] add support for launching and form .desktop files.
 - [ ] add better documentation.
+- [ ] make layout configured with yaml and make them idempotent
 
 ## development history and schedule:
 
