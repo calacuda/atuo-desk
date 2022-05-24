@@ -2,7 +2,8 @@ use configparser::ini::Ini;
 use shellexpand;
 use std::collections::HashMap;
 use std::error::Error;
-use std::io::prelude::*;
+// use std::io::prelude::*;
+use std::fs::read_to_string;
 use std::io::Read;
 use std::io::Write;
 use std::os::unix::net::{UnixListener, UnixStream};
@@ -10,9 +11,8 @@ use std::thread;
 // use unix_socket::Incoming;
 
 mod bspwm;
-// mod common;
 mod common;
-// mod power;
+// mod free_desktop;
 
 fn load_config(
     config_file: &str,
@@ -37,6 +37,26 @@ fn get_servers(config_file: &str) -> HashMap<String, Option<String>> {
         Some(data) => data.to_owned(),
         None => panic!("config file has not server configurations. exiting"),
     };
+}
+
+fn load_layout(spath: &str, args: &str) -> u8 {
+    // loads a layout file and configures the system apropiately.
+    let file_path = common::get_layout_file(args);
+    let layout_file = match read_to_string(file_path) {
+        Ok(data) => data,
+        Err(_) => {
+            println!("[ERROR] could not layout file {}", args);
+            return 4;
+        }
+    };
+
+    for cmd in layout_file.lines() {
+        let err_code = switch_board(cmd.to_string(), spath);
+        if err_code > 0 {
+            return err_code;
+        }
+    }
+    return 0;
 }
 
 fn write_shutdown(stream: &mut UnixStream, res: u8) {
@@ -90,6 +110,7 @@ fn switch_board(command: String, spath: &str) -> u8 {
         "inc-bl" => common::backlight::inc_bright(args),
         "dec-bl" => common::backlight::dec_bright(args),
         "add-monitor" => common::xrandr::add_monitor(args),
+        "load-layout" => load_layout(spath, args),
         _ => 1,
     };
 }
@@ -105,7 +126,7 @@ fn handle_client(mut stream: UnixStream, spath: &str) {
     drop(stream)
 }
 
-fn recv_loop(progr: &str, bspwm: String) -> std::io::Result<()> {
+fn recv_loop(progr: &str, bspwm_socket: String) -> std::io::Result<()> {
     // println!("recv_loop");
     let listener = UnixListener::bind(progr)?;
 
@@ -113,7 +134,7 @@ fn recv_loop(progr: &str, bspwm: String) -> std::io::Result<()> {
         match stream {
             Ok(stream) => {
                 /* connection succeeded */
-                let tmp_bspwm = bspwm.clone();
+                let tmp_bspwm = bspwm_socket.clone();
                 thread::spawn(move || handle_client(stream, &tmp_bspwm));
             }
             Err(err) => {

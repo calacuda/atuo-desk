@@ -18,7 +18,7 @@ PATH = "/tmp/desktop-automater"
 s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 s.connect(PATH)
 # s.connect()
-s.send(b"open-at kitty 9")
+s.send(b"load-layout test1")
 # s.send(b"lock")
 s.shutdown(1)  # tells the server im done sending data and it can reply now.
 # s.setblocking(True)

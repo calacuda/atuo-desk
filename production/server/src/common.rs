@@ -2,6 +2,7 @@
 // use std::error::Error;
 // use std::io::prelude::*;
 use rdev::{simulate, EventType, Key, SimulateError};
+use shellexpand;
 use std::process::Command;
 use std::{thread, time};
 
@@ -16,10 +17,19 @@ pub mod xrandr;
  *
  */
 
+pub fn get_layout_file(file_name: &str) -> String {
+    return shellexpand::tilde(&if file_name.ends_with(".layout") {
+        format!("~/.config/desktop-automater/layouts/{}", file_name)
+    } else {
+        format!("~/.config/desktop-automater/layouts/{}.layout", file_name)
+    })
+    .to_string();
+}
+
 pub fn open_program(program: &str) -> u8 {
     println!("[LOG] running: {}", program);
-    let mut process = Command::new(program)
-        .output()
+    let _process = Command::new(program)
+        .spawn()
         .expect("failed to execute process");
     println!("[LOG] ran {}", program);
     return 0;

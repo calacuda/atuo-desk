@@ -39,6 +39,8 @@ Desktop automator designed to allow programmatic control of the desktop environm
 - [x] add volume and media controls
 - [x] add simple xrandr/autorandr controls
 - [ ] add pass through for querying BSPWM.
+- [ ] add support for launching and form .desktop files.
+- [ ] add better documentation.
 
 ## development history and schedule:
 
@@ -46,5 +48,5 @@ Desktop automator designed to allow programmatic control of the desktop environm
 - [x] 2. rewrite in Rust/Golang. (this was done in Rust)
 - [x] 3. add misc features.
 - [x] 4. write systemd service
-- [ ] 5. add mycroft support <= we are working on this. (everything below this is subject to change)
-- [ ] 6. add support for KDE.
+- [x] 5. add mycroft support
+- [ ] 6. add support for KDE <= we are working on this. (everything below this is subject to change)
