@@ -45,6 +45,7 @@ see [spec.md](spec.md)
 - [ ] add pass through for querying BSPWM.
 - [ ] add better documentation. (ongoing)
 - [ ] make layout configured with yaml and make them idempotent
+- [ ] add multi token commands. 
 
 ## development history and schedule:
 
