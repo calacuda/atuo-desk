@@ -12,6 +12,10 @@ Desktop automator designed to allow programmatic control of the desktop environm
 - consistent API and endpoint makes controlling the system and some programs easy.
 - it's programmatic so you can write your own scripts to control the WM/DE and some common programs.
 
+## documentation:
+
+see [spec.md](spec.md)
+
 ## dependencies:
 - systemd
 - loginctl
@@ -22,9 +26,10 @@ Desktop automator designed to allow programmatic control of the desktop environm
 ## planned features:
 (for the future)
 
-- [ ] 1. write a [Mycroft](https://mycroft-ai.gitbook.io/docs/) skill to add a voice control feature
-- [ ] 2. add VERY basic web browser control. (prob using the gecko/chromium drives. this would make it easier to support firefox/chromium and most derivatives with the same code base.)
+- [x] 1. write a [Mycroft](https://mycroft-ai.gitbook.io/docs/) skill to add a voice control feature
+- [ ] 2. ~~add VERY basic web browser control. (prob using the gecko/chromium drives. this would make it easier to support firefox/chromium and most derivatives with the same code base.)~~ (no longer important but i might want to get to it eventually)   
 - [ ] 3. support for finding bspwm nodes by name. (so one could say, "go back to alacritty/firefox" in mycroft.)
+- [ ] 4. support for KDE.
 
 ## TODOs:
 (things planned for the immediate/foreseeable future)
@@ -32,14 +37,13 @@ Desktop automator designed to allow programmatic control of the desktop environm
 - [x] add config file
 - [x] write system service
 - [x] rewrite server in rust
-- [ ] add support for KDE
 - [ ] change between full screen, tiled, floating, and pseudo_tiled.
 - [x] power control (sleep, hibernate, poweroff, lock, etc)
 - [ ] ~~system restart service~~
 - [x] add volume and media controls
 - [x] add simple xrandr/autorandr controls
 - [ ] add pass through for querying BSPWM.
-- [ ] add better documentation.
+- [ ] add better documentation. (ongoing)
 - [ ] make layout configured with yaml and make them idempotent
 
 ## development history and schedule:
