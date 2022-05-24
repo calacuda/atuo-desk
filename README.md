@@ -1,4 +1,4 @@
-# desktop-controller
+# desktop-automater
 Controls Linux desktop environments and tiling window managers. It uses Unix sockets to handle communication with the client program. Development is currently focused on the [BSPWM](https://github.com/baskerville/bspwm) tiling window manager.
 
 ---
