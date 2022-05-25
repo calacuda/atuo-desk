@@ -55,7 +55,7 @@ pub fn open_on_desktop(spath: &str, raw_args: &str) -> u8 {
         }
         Err(e) => {
             println!("[ERROR] program {} could not be launched: {}", args[0], e);
-            4
+            return 4;
         }
     };
 
