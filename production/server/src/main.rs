@@ -65,8 +65,6 @@ fn load_from_layout(layout_file: String, spath: &str, args: &str) -> u8 {
 }
 
 fn set_up_desktop(desktop_name: &str, programs: &Vec<Program>, spath: &str) -> u8 {
-    // move to desktop
-    // bspwm::focus_on(spath, desktop_name);
     for program in programs {
         let error_code =
             bspwm::open_on_desktop(spath, &format!("{} {}", &program.name, desktop_name));
