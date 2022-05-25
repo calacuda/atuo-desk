@@ -37,7 +37,6 @@ see [spec.md](spec.md)
 
 - [ ] add support for KDE
 - [ ] change between full screen, tiled, floating, and pseudo_tiled.
-- [ ] ~~system restart service~~
 - [x] add simple xrandr/autorandr controls
 - [ ] add pass through for querying BSPWM.
 - [ ] add better documentation. (ongoing)
