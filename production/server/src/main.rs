@@ -114,7 +114,7 @@ fn load_layout(spath: &str, args: &str) -> u8 {
         }
     };
 
-    println!("[LOG] loading layout {} from", file_path);
+    println!("[LOG] loading layout {}", file_path);
 
     return if file_path.ends_with(".yml") || file_path.ends_with(".yaml") {
         load_from_yaml(layout_file, spath, &file_path)
