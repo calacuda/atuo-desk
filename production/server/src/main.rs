@@ -7,7 +7,7 @@ use std::fs::read_to_string;
 use std::io::Read;
 use std::io::Write;
 use std::os::unix::net::{UnixListener, UnixStream};
-use std::thread;
+use std::{thread, time};
 // use yaml_rust::{YamlLoader, Yaml};
 // use unix_socket::Incoming;
 use serde::{Deserialize, Serialize};
@@ -21,6 +21,7 @@ mod common;
 struct Program {
     name: String,
     state: Option<String>,
+    delay: Option<u8>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -64,12 +65,50 @@ fn load_from_layout(layout_file: String, spath: &str) -> u8 {
     return 0;
 }
 
-fn set_up_desktop(desktop_name: &str, programs: &Vec<Program>, spath: &str) -> u8 {
+fn set_up_desktop(
+    desktop_name: &str,
+    programs: &Vec<Program>,
+    spath: &str,
+    all_rules: &mut Vec<String>,
+) -> u8 {
     for program in programs {
+        // program = program.to_owned();
+        let rules = [
+            format!(
+                "{}:{} desktop={}",
+                program.name[0..1].to_uppercase() + &program.name[1..],
+                program.name,
+                desktop_name
+            ),
+            format!("{} desktop={}", program.name, desktop_name),
+            format!(
+                "{}:{} desktop={}",
+                program.name[0..1].to_uppercase() + &program.name[1..],
+                program.name[0..1].to_uppercase() + &program.name[1..],
+                desktop_name
+            ),
+        ];
+
+        for rule in &rules {
+            all_rules.push(rule.to_owned());
+            if bspwm::send(spath, &format!("rule -a {} --one-shot", &rule)) > 0 {
+                return 3;
+            }
+        }
+
         let error_code =
             bspwm::open_on_desktop(spath, &format!("{} {}", &program.name, desktop_name));
         if error_code > 0 {
             return error_code;
+        }
+        match program.delay {
+            Some(times) => {
+                let t = time::Duration::from_millis(100);
+                for _ in 0..times {
+                    thread::sleep(t);
+                }
+            }
+            None => {}
         }
     }
     return 0;
@@ -83,6 +122,7 @@ fn load_from_yaml(layout_file: String, spath: &str, fname: &str) -> u8 {
             return 4;
         }
     };
+    let mut all_rules = Vec::new();
 
     for layout in layouts {
         // get desktop number
@@ -90,9 +130,16 @@ fn load_from_yaml(layout_file: String, spath: &str, fname: &str) -> u8 {
         // get programs
         let programs = layout.programs;
         // set up desktop
-        let err_code = set_up_desktop(&desktop_num, &programs, spath);
+        let err_code = set_up_desktop(&desktop_num, &programs, spath, &mut all_rules);
         if err_code > 0 {
             return err_code;
+        }
+    }
+
+    println!("[LOG] rming rules...");
+    for rule in &all_rules {
+        if bspwm::send(spath, &format!("rule -r {}", &rule)) > 0 {
+            return 3;
         }
     }
 

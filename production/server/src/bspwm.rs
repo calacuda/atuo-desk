@@ -62,7 +62,7 @@ pub fn open_on_desktop(spath: &str, raw_args: &str) -> u8 {
     let t = time::Duration::from_millis(100);
 
     while init_nodes_n == query(spath, "query -N -d").len() {
-        // println!("[LOG] sleeping...");
+        // println!("[DEBUG] sleeping...");
         thread::sleep(t);
     }
 
@@ -111,7 +111,7 @@ fn make_api(message: &str) -> Vec<u8> {
     return res;
 }
 
-fn send(spath: &str, message: &str) -> u8 {
+pub fn send(spath: &str, message: &str) -> u8 {
     match UnixStream::connect(spath) {
         Ok(mut stream) => {
             match stream.write_all(&make_api(message)) {
