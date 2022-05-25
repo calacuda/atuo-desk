@@ -50,4 +50,6 @@ see [spec.md](spec.md)
 - [x] 3. add misc features.
 - [x] 4. write systemd service
 - [x] 5. add mycroft support
-- [ ] 6. add support for KDE <= we are working on this. (everything below this is subject to change)
+- [ ] 6. finish bspwm support <= we are working on this. (everything below this is subject to change)
+
+- [ ] 7. add support for KDE
