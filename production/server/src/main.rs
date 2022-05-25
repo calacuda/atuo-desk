@@ -54,7 +54,7 @@ fn get_servers(config_file: &str) -> HashMap<String, Option<String>> {
     };
 }
 
-fn load_from_layout(layout_file: String, spath: &str, args: &str) -> u8 {
+fn load_from_layout(layout_file: String, spath: &str) -> u8 {
     for cmd in layout_file.lines() {
         let err_code = switch_board(cmd.to_string(), spath);
         if err_code > 0 {
@@ -75,7 +75,7 @@ fn set_up_desktop(desktop_name: &str, programs: &Vec<Program>, spath: &str) -> u
     return 0;
 }
 
-fn load_from_yaml(layout_file: String, spath: &str, args: &str, fname: &str) -> u8 {
+fn load_from_yaml(layout_file: String, spath: &str, fname: &str) -> u8 {
     let layouts: Vec<DesktopLayout> = match serde_yaml::from_str(&layout_file) {
         Ok(data) => data,
         Err(e) => {
@@ -115,9 +115,9 @@ fn load_layout(spath: &str, args: &str) -> u8 {
     };
 
     return if file_path.ends_with(".yml") || file_path.ends_with(".yaml") {
-        load_from_yaml(layout_file, spath, args, &file_path)
+        load_from_yaml(layout_file, spath, &file_path)
     } else {
-        load_from_layout(layout_file, spath, args)
+        load_from_layout(layout_file, spath)
     };
 }
 

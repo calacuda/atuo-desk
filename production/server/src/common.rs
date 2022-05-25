@@ -3,8 +3,6 @@
 // use std::io::prelude::*;
 use rdev::{simulate, EventType, Key, SimulateError};
 use shellexpand;
-use std::ffi::OsStr;
-use std::fs;
 use std::path::Path;
 use std::process::Command;
 use std::{thread, time};
@@ -29,7 +27,7 @@ pub fn get_layout_file(file_name: &str) -> Result<String, ()> {
     //     },
     // )
     // .to_string();
-    let mut layout_dir = shellexpand::tilde(&format!(
+    let layout_dir = shellexpand::tilde(&format!(
         "~/.config/desktop-automater/layouts/{}",
         file_name
     ))

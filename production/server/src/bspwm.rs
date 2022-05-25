@@ -9,7 +9,7 @@ use std::{thread, time};
 fn query(spath: &str, message: &str) -> String {
     match UnixStream::connect(spath) {
         Ok(mut stream) => {
-            match stream.write_all(&make_API(message)) {
+            match stream.write_all(&make_api(message)) {
                 Ok(_) => {}
                 Err(e) => println!("[ERROR] couldn't not send data to BSPWM: {}", e),
             };
@@ -74,7 +74,6 @@ fn get_n_args(n: i32, arg_str: &str) -> Vec<String> {
         return Vec::new();
     }
     let mut args = Vec::new();
-    let mut tmp_arg_str = arg_str.to_string();
     let a = arg_str.split_once(" ");
     match a {
         Some((arg1, arg2)) => {
@@ -86,12 +85,12 @@ fn get_n_args(n: i32, arg_str: &str) -> Vec<String> {
     return args;
 }
 
-fn get_one_arg(args: &str) -> (&str, &str) {
-    return match args.split_once(" ") {
-        Some(cmd_args) => cmd_args.to_owned(),
-        None => (args, ""), //panic!("This function take more then one input!"),
-    };
-}
+// fn get_one_arg(args: &str) -> (&str, &str) {
+//     return match args.split_once(" ") {
+//         Some(cmd_args) => cmd_args.to_owned(),
+//         None => (args, ""), //panic!("This function take more then one input!"),
+//     };
+// }
 
 pub fn focus_on(spath: &str, destination: &str) -> u8 {
     return send(spath, &format!("desktop -f {}", destination));
@@ -105,7 +104,7 @@ pub fn close_focused(spath: &str) -> u8 {
     return send(spath, "node -c");
 }
 
-fn make_API(message: &str) -> Vec<u8> {
+fn make_api(message: &str) -> Vec<u8> {
     let null = &format!("{}", 0 as char);
     let mut res = message.replace(' ', null).as_bytes().to_vec();
     res.push(0);
@@ -115,7 +114,7 @@ fn make_API(message: &str) -> Vec<u8> {
 fn send(spath: &str, message: &str) -> u8 {
     match UnixStream::connect(spath) {
         Ok(mut stream) => {
-            match stream.write_all(&make_API(message)) {
+            match stream.write_all(&make_api(message)) {
                 Ok(_) => {}
                 Err(e) => println!("[ERROR] couldn't not send data to BSPWM: {}", e),
             };
