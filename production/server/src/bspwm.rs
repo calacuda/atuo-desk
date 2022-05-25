@@ -62,7 +62,7 @@ pub fn open_on_desktop(spath: &str, raw_args: &str) -> u8 {
     let t = time::Duration::from_millis(100);
 
     while init_nodes_n == query(spath, "query -N -d").len() {
-        println!("[LOG] sleeping...");
+        // println!("[LOG] sleeping...");
         thread::sleep(t);
     }
 

@@ -4,7 +4,7 @@
 Description=desktop-automater
 
 [Service]
-ExecStart=~/.cargo/bin/desktop-automater
+ExecStart=%h/.cargo/bin/desktop-automater
 
 [Install]
 WantedBy=multi-user.target
