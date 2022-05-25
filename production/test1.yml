@@ -1,0 +1,19 @@
+---
+  - desktop: 10
+    programs:
+      - name: kitty
+
+  - desktop: 9
+    programs:
+      - name: obsidian
+        # state: fullscreen
+
+  - desktop: 8
+    programs:
+      - name: pavucontrol
+      - name: kitty
+      - name: kitty
+
+  - desktop: 7
+    programs:
+      - name: brave

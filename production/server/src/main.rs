@@ -8,11 +8,26 @@ use std::io::Read;
 use std::io::Write;
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::thread;
+// use yaml_rust::{YamlLoader, Yaml};
 // use unix_socket::Incoming;
+use serde::{Deserialize, Serialize};
+use serde_yaml;
 
 mod bspwm;
 mod common;
 // mod free_desktop;
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+struct Program {
+    name: String,
+    state: Option<String>,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+struct DesktopLayout {
+    desktop: u8,
+    programs: Vec<Program>,
+}
 
 fn load_config(
     config_file: &str,
@@ -39,17 +54,7 @@ fn get_servers(config_file: &str) -> HashMap<String, Option<String>> {
     };
 }
 
-fn load_layout(spath: &str, args: &str) -> u8 {
-    // loads a layout file and configures the system apropiately.
-    let file_path = common::get_layout_file(args);
-    let layout_file = match read_to_string(file_path) {
-        Ok(data) => data,
-        Err(_) => {
-            println!("[ERROR] could not layout file {}", args);
-            return 4;
-        }
-    };
-
+fn load_from_layout(layout_file: String, spath: &str) -> u8 {
     for cmd in layout_file.lines() {
         let err_code = switch_board(cmd.to_string(), spath);
         if err_code > 0 {
@@ -57,6 +62,65 @@ fn load_layout(spath: &str, args: &str) -> u8 {
         }
     }
     return 0;
+}
+
+fn set_up_desktop(desktop_name: &str, programs: &Vec<Program>, spath: &str) -> u8 {
+    for program in programs {
+        let error_code =
+            bspwm::open_on_desktop(spath, &format!("{} {}", &program.name, desktop_name));
+        if error_code > 0 {
+            return error_code;
+        }
+    }
+    return 0;
+}
+
+fn load_from_yaml(layout_file: String, spath: &str, fname: &str) -> u8 {
+    let layouts: Vec<DesktopLayout> = match serde_yaml::from_str(&layout_file) {
+        Ok(data) => data,
+        Err(e) => {
+            println!("[ERROR] could parse yaml layout file {} {}", fname, e);
+            return 4;
+        }
+    };
+
+    for layout in layouts {
+        // get desktop number
+        let desktop_num = format!("{}", layout.desktop);
+        // get programs
+        let programs = layout.programs;
+        // set up desktop
+        let err_code = set_up_desktop(&desktop_num, &programs, spath);
+        if err_code > 0 {
+            return err_code;
+        }
+    }
+
+    return 0;
+}
+
+fn load_layout(spath: &str, args: &str) -> u8 {
+    // loads a layout file and configures the system apropiately.
+    let file_path = match common::get_layout_file(args) {
+        Ok(path) => path,
+        Err(_) => return 4,
+    };
+
+    let layout_file = match read_to_string(&file_path) {
+        Ok(data) => data,
+        Err(_) => {
+            println!("[ERROR] could not layout file {}", args);
+            return 4;
+        }
+    };
+
+    println!("[LOG] loading layout {}", file_path);
+
+    return if file_path.ends_with(".yml") || file_path.ends_with(".yaml") {
+        load_from_yaml(layout_file, spath, &file_path)
+    } else {
+        load_from_layout(layout_file, spath)
+    };
 }
 
 fn write_shutdown(stream: &mut UnixStream, res: u8) {

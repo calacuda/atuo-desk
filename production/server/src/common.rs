@@ -3,6 +3,7 @@
 // use std::io::prelude::*;
 use rdev::{simulate, EventType, Key, SimulateError};
 use shellexpand;
+use std::path::Path;
 use std::process::Command;
 use std::{thread, time};
 
@@ -17,19 +18,36 @@ pub mod xrandr;
  *
  */
 
-pub fn get_layout_file(file_name: &str) -> String {
-    return shellexpand::tilde(&if file_name.ends_with(".layout") {
-        format!("~/.config/desktop-automater/layouts/{}", file_name)
-    } else {
-        format!("~/.config/desktop-automater/layouts/{}.layout", file_name)
-    })
+pub fn get_layout_file(file_name: &str) -> Result<String, ()> {
+    // let shellexpand::tilde(
+    //     &if file_name.ends_with(".layout") || file_name.ends_with(".yml") {
+    //         format!("~/.config/desktop-automater/layouts/{}", file_name)
+    //     } else {
+    //         format!("~/.config/desktop-automater/layouts/{}.layout", file_name)
+    //     },
+    // )
+    // .to_string();
+    let layout_dir = shellexpand::tilde(&format!(
+        "~/.config/desktop-automater/layouts/{}",
+        file_name
+    ))
     .to_string();
+
+    let f_types = ["", ".yml", ".yaml", ".layout"];
+
+    for f_type in f_types {
+        let p = Path::new(&format!("{}{}", layout_dir, f_type)).to_owned();
+        if p.exists() {
+            return Ok(p.to_str().unwrap().to_string());
+        }
+    }
+    return Err(());
 }
 
 pub fn open_program(program: &str) -> u8 {
     println!("[LOG] running: {}", program);
     let _process = Command::new(program)
-        .spawn()
+        .output()
         .expect("failed to execute process");
     println!("[LOG] ran {}", program);
     return 0;

@@ -22,8 +22,9 @@ see [spec.md](spec.md)
 - alsa (plans to remove in future)
 - playerctl
 - xbacklight (plans to remove in future)
+- xrandr
 
-## planned features:
+## planned features/ideas for the future:
 (for the future)
 
 - [x] 1. write a [Mycroft](https://mycroft-ai.gitbook.io/docs/) skill to add a voice control feature
@@ -34,18 +35,14 @@ see [spec.md](spec.md)
 ## TODOs:
 (things planned for the immediate/foreseeable future)
 
-- [x] add config file
-- [x] write system service
-- [x] rewrite server in rust
+- [ ] add support for KDE
 - [ ] change between full screen, tiled, floating, and pseudo_tiled.
-- [x] power control (sleep, hibernate, poweroff, lock, etc)
 - [ ] ~~system restart service~~
-- [x] add volume and media controls
 - [x] add simple xrandr/autorandr controls
 - [ ] add pass through for querying BSPWM.
 - [ ] add better documentation. (ongoing)
-- [ ] make layout configured with yaml and make them idempotent
-- [ ] add multi token commands. 
+- [x] make layout configured with yaml
+- [ ] make layout function idempotent
 
 ## development history and schedule:
 
