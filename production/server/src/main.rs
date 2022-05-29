@@ -136,7 +136,7 @@ fn load_from_yaml(layout_file: String, spath: &str, fname: &str) -> u8 {
         }
     }
 
-    println!("[LOG] rming rules...");
+    println!("[LOG] running rules...");
     for rule in &all_rules {
         if bspwm::send(spath, &format!("rule -r {}", &rule)) > 0 {
             return 3;
