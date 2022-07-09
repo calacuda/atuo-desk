@@ -80,7 +80,7 @@ pub fn open_program(program: &str) -> u8 {
         }
     };
     // println!("[LOG] ran {}", program);
-    return 0;
+    // return 0;
 }
 
 fn send_key_stroke(event_type: &EventType) -> u8 {
