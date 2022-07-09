@@ -25,33 +25,6 @@ fn main() {
     }
 }
 
-// fn find_loadout(fname: String) -> String {
-//     /*
-//      * finds the desired loadout file either in the loadout dir, cwd, or the path provided.
-//      */
-//     let paths = vec![
-//         format!("~/.config/desktop-automater/layouts/{}.yml", fname),
-//         format!("~/.config/desktop-automater/layouts/{}.yaml", fname),
-//         fname.clone(),
-//         format!("~/.config/desktop-automater/layouts/{}", fname),
-//     ];
-//
-//     for fp in paths
-//         .into_iter()
-//         .map(|x| shellexpand::full(&x).unwrap().to_string())
-//     {
-//         if Path::new(&fp).exists() {
-//             return std::fs::canonicalize(&fp.clone())
-//                 .unwrap()
-//                 .into_os_string()
-//                 .into_string()
-//                 .unwrap();
-//         }
-//     }
-//     println!("could not find the loadout file named {}", fname);
-//     exit(1);
-// }
-
 fn send_data(data: String, server_soc: String) -> Vec<u8> {
     let mut stream = match UnixStream::connect(&server_soc) {
         Ok(stream) => stream,
@@ -82,17 +55,36 @@ fn send_data(data: String, server_soc: String) -> Vec<u8> {
         }
     };
 
-    let mut response = Vec::new();
-    match stream.read_to_end(&mut response) {
+    let mut response_bytes = Vec::new();
+    match stream.read_to_end(&mut response_bytes) {
         Ok(_) => {}
         Err(e) => {
             println!("could not read response from server.");
             println!("[DEBUG] :  {}", e);
             exit(1);
         }
-    }; //  &mut response);
+    };
 
-    return response; // return response;
+    let ec = response_bytes[0];
+    let response = &response_bytes[1..];
+
+    if ec > 0 {
+        print!("{}", 7 as char);
+        print!("[ERROR] The server reported an error (check 'systemctl status' for message). error code: ");
+    } else {
+        print!("[SUCCESS] responce: ")
+    }
+
+    match str::from_utf8(&response) {
+        Ok(text) => println!("{}", text),
+        Err(_e) => {
+            println!("responce had invalid UTF-8, could not parse.");
+            println!("raw bytes:");
+            println!("{:?}", response);
+        }
+    };
+
+    return response_bytes;
 }
 
 fn handle_loadout(args: ArgMatches, server_soc: String) {
@@ -103,29 +95,25 @@ fn handle_loadout(args: ArgMatches, server_soc: String) {
         Path::new(&loadout_path).to_str().unwrap()
     );
 
-    let response_bytes = send_data(format!("load-layout {}", loadout_path), server_soc);
-    let ec = response_bytes[0];
-    let response = &response_bytes[1..];
-
-    if ec > 0 {
-        print!("{}", 7 as char);
-        print!("[ERROR] A server side error ocured. error code: ");
-    } else {
-        print!("[SUCCESS] responce: ")
-    }
-    // println!("{:#?}", response_bytes);
-    match str::from_utf8(&response) {
-        Ok(text) => println!("{}", text),
-        Err(_e) => {
-            println!("responce had invalid UTF-8, could not parse.");
-            println!("raw bytes:");
-            println!("{:?}", response);
-        }
-    };
+    let _response_bytes = send_data(format!("load-layout {}", loadout_path), server_soc);
 }
 
-fn handle_launch(_args: ArgMatches, _server_soc: String) {
-    println!("launching program...");
+fn handle_launch(args: ArgMatches, server_soc: String) {
+    let program = args.get_one::<String>("program").unwrap().clone();
+    println!("launching {}...", program);
+
+    let _response_bytes = if args.contains_id("desktop") {
+        send_data(
+            format!(
+                "open-at {} {}",
+                program,
+                args.get_one::<String>("desktop").unwrap()
+            ),
+            server_soc,
+        )
+    } else {
+        send_data(format!("open-here {}", program), server_soc)
+    };
 }
 
 fn get_servers(config_file: &str) -> HashMap<String, Option<String>> {
@@ -136,8 +124,6 @@ fn get_servers(config_file: &str) -> HashMap<String, Option<String>> {
             exit(1);
         }
     };
-
-    // println!("{:#?}", configs);
 
     return match configs.get("server") {
         Some(data) => data.to_owned(),
@@ -208,16 +194,6 @@ fn get_args() -> ArgMatches {
             SubCommand::with_name("launch")
                 .help("launch a program")
                 .arg(
-                    Arg::new("program")
-                        // .short('p')// .short('p')
-                        // .long("program")
-                        // .long("program")
-                        .value_name("PROGRAM")
-                        .help("The program to be launched")
-                        .takes_value(true)
-                        .required(true),
-                )
-                .arg(
                     Arg::new("desktop")
                         .short('d')
                         .long("desktop")
@@ -225,7 +201,41 @@ fn get_args() -> ArgMatches {
                         .help("The desktop to launch the program on")
                         .takes_value(true)
                         .required(false),
+                )
+                .arg(
+                    Arg::new("program")
+                        .value_name("PROGRAM")
+                        .help("The program to be launched")
+                        .takes_value(true)
+                        .required(true),
                 ),
         )
         .get_matches();
 }
+
+// fn find_loadout(fname: String) -> String {
+//     /*
+//      * finds the desired loadout file either in the loadout dir, cwd, or the path provided.
+//      */
+//     let paths = vec![
+//         format!("~/.config/desktop-automater/layouts/{}.yml", fname),
+//         format!("~/.config/desktop-automater/layouts/{}.yaml", fname),
+//         fname.clone(),
+//         format!("~/.config/desktop-automater/layouts/{}", fname),
+//     ];
+//
+//     for fp in paths
+//         .into_iter()
+//         .map(|x| shellexpand::full(&x).unwrap().to_string())
+//     {
+//         if Path::new(&fp).exists() {
+//             return std::fs::canonicalize(&fp.clone())
+//                 .unwrap()
+//                 .into_os_string()
+//                 .into_string()
+//                 .unwrap();
+//         }
+//     }
+//     println!("could not find the loadout file named {}", fname);
+//     exit(1);
+// }

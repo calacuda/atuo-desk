@@ -34,7 +34,7 @@ once a command is sent to the server it will replay with an exit code (see below
 ## bspwm commands:
 |command | arguments | description |
 |--------|-----------|-------------|
-|open-at | desktop, program | runs a program in a tmp desktop then moves it to the desktop arg. then waits for the program to launch before continuing. |
+|open-at | desktop, program | opens a program on the specified desktop then waits for the program to launch before continuing. |
 |close-focused | N/A | closes the currently focused node (window).|
 |move-to | desktop | moves the currently focused node to the specified desktop|
 |focus-on | desktop | switches focus to the specified desktop|
