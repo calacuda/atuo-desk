@@ -42,6 +42,7 @@ see [spec.md](spec.md)
 - [ ] add better documentation. (ongoing)
 - [x] make layout configured with yaml
 - [ ] make layout function idempotent
+- [ ] write an ensure_file and make default configs file
 
 ## development history and schedule:
 
