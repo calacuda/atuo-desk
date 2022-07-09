@@ -14,7 +14,12 @@ fn query(spath: &str, message: &str) -> String {
                 Err(e) => println!("[ERROR] couldn't not send data to BSPWM: {}", e),
             };
             let mut res = String::new();
-            stream.read_to_string(&mut res);
+            match stream.read_to_string(&mut res) {
+                Ok(_) => {}
+                Err(_e) => {
+                    println!("could not read from bspwm socket. user intervention requested.");
+                }
+            };
             return res;
         }
         Err(e) => {
@@ -34,7 +39,7 @@ pub fn open_on_desktop(spath: &str, raw_args: &str) -> u8 {
         return 7;
     }
 
-    set_current_dir(Path::new(&shellexpand::tilde("~/").to_string()));
+    let _ = set_current_dir(Path::new(&shellexpand::tilde("~/").to_string()));
 
     println!("[LOG] running {} on desktop {}:", args[0], args[1]);
 
@@ -119,7 +124,12 @@ pub fn send(spath: &str, message: &str) -> u8 {
                 Err(e) => println!("[ERROR] couldn't not send data to BSPWM: {}", e),
             };
             let mut res: Vec<u8> = Vec::new();
-            stream.read_to_end(&mut res);
+            match stream.read_to_end(&mut res) {
+                Ok(_) => {}
+                Err(_e) => {
+                    println!("could not read from bspwm socket. user intervention requested.");
+                }
+            };
             return if res.len() > 0 && res[0] == 7 as u8 {
                 println!("[ERROR] BSPWM error: {}", String::from_utf8(res).unwrap());
                 6

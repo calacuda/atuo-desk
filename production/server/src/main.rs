@@ -174,21 +174,21 @@ fn load_layout(spath: &str, args: &str) -> u8 {
 }
 
 fn write_shutdown(stream: &mut UnixStream, res: u8) {
-    stream.write(&[res]);
-    stream.write_all(&format!("{}", res).as_bytes()).unwrap();
+    let _ = stream.write(&[res]);
+    let _ = stream.write_all(&format!("{}", res).as_bytes()).unwrap();
     // if res > 0 {
     //     stream.write_all(&format!("{}", res).as_bytes()).unwrap();
     // } else {
     //     stream.write_all(&format!("{}", res).as_bytes()).unwrap();
     // }
-    stream.shutdown(std::net::Shutdown::Write);
+    let _ = stream.shutdown(std::net::Shutdown::Write);
 }
 
 fn read_command(stream: &mut UnixStream) -> String {
     let mut command = String::new();
     // stream.set_nonblocking(false);
     stream.read_to_string(&mut command).unwrap();
-    stream.shutdown(std::net::Shutdown::Read);
+    let _ = stream.shutdown(std::net::Shutdown::Read);
     return command;
 }
 
