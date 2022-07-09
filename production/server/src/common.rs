@@ -34,7 +34,17 @@ pub fn get_layout_file(file_name: &str) -> Result<String, ()> {
         }
     }
 
-    let layout_dir = shellexpand::tilde(&format!(
+    let mut layout_dir = shellexpand::tilde("~/.config/desktop-automater/layouts/").to_string();
+
+    if shellexpand::tilde(&file_name)
+        .to_string()
+        .starts_with(&layout_dir)
+        && Path::new(file_name).exists()
+    {
+        return Ok(shellexpand::tilde(file_name).to_string());
+    }
+
+    layout_dir = shellexpand::tilde(&format!(
         "~/.config/desktop-automater/layouts/{}",
         file_name
     ))
