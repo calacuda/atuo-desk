@@ -4,7 +4,7 @@
 use rdev::{simulate, EventType, Key, SimulateError};
 use shellexpand;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::{thread, time};
 
 pub mod backlight;
@@ -64,9 +64,22 @@ pub fn get_layout_file(file_name: &str) -> Result<String, ()> {
 pub fn open_program(program: &str) -> u8 {
     println!("[LOG] running: {}", program);
     let _process = Command::new(program)
-        .output()
-        .expect("failed to execute process");
-    println!("[LOG] ran {}", program);
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn();
+    // .output()
+    // .expect("failed to execute process");
+    return match _process {
+        Ok(_) => {
+            println!("[LOG] program {} launched", program);
+            0
+        }
+        Err(e) => {
+            println!("[ERROR] program {} could not be launched: {}", program, e);
+            4
+        }
+    };
+    // println!("[LOG] ran {}", program);
     return 0;
 }
 
