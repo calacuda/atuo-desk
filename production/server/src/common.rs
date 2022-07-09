@@ -27,6 +27,13 @@ pub fn get_layout_file(file_name: &str) -> Result<String, ()> {
     //     },
     // )
     // .to_string();
+    #[cfg(feature = "testing")]
+    {
+        if Path::new(file_name).exists() {
+            return Ok(Path::new(file_name).to_str().unwrap().to_string());
+        }
+    }
+
     let layout_dir = shellexpand::tilde(&format!(
         "~/.config/desktop-automater/layouts/{}",
         file_name
@@ -58,7 +65,17 @@ fn send_key_stroke(event_type: &EventType) -> u8 {
     let res = match simulate(event_type) {
         Ok(()) => 0,
         Err(SimulateError) => {
-            println!("[ERROR] print screen key not pressed");
+            match event_type {
+                EventType::KeyPress(Key::PrintScreen) => {
+                    println!("[ERROR] print screen key not pressed")
+                }
+                EventType::KeyRelease(Key::PrintScreen) => {
+                    println!("[ERROR] print screen key not released")
+                }
+                EventType::KeyPress(key) => println!("[ERROR {:?} key not pressed", key),
+                EventType::KeyRelease(key) => println!("[ERROR {:?} key not released", key),
+                _ => {} // this will happend when funciton is used for somthing unintended.
+            }
             4
         }
     };

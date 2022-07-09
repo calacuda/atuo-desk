@@ -41,10 +41,7 @@ fn load_config(
 fn get_servers(config_file: &str) -> HashMap<String, Option<String>> {
     let configs: HashMap<String, HashMap<String, Option<String>>> = match load_config(config_file) {
         Ok(data) => data,
-        Err(e) => panic!(
-            "got error : {:?}\nwrite and ensure_dir and ensure_file and put them here",
-            e
-        ),
+        Err(e) => panic!("got error : {:?}\n", e),
     };
 
     // println!("{:#?}", configs);
@@ -150,7 +147,13 @@ fn load_layout(spath: &str, args: &str) -> u8 {
     // loads a layout file and configures the system apropiately.
     let file_path = match common::get_layout_file(args) {
         Ok(path) => path,
-        Err(_) => return 4,
+        Err(_) => {
+            println!(
+                "[ERROR] can't load layout stored in \"{}\", file doesn't exsist.",
+                args
+            );
+            return 4;
+        }
     };
 
     let layout_file = match read_to_string(&file_path) {
@@ -171,15 +174,13 @@ fn load_layout(spath: &str, args: &str) -> u8 {
 }
 
 fn write_shutdown(stream: &mut UnixStream, res: u8) {
-    if res > 0 {
-        stream
-            .write_all(&format!("{}{}", res as char, res).as_bytes())
-            .unwrap();
-    } else {
-        stream
-            .write_all(&format!("{} done", res).as_bytes())
-            .unwrap();
-    }
+    stream.write(&[res]);
+    stream.write_all(&format!("{}", res).as_bytes()).unwrap();
+    // if res > 0 {
+    //     stream.write_all(&format!("{}", res).as_bytes()).unwrap();
+    // } else {
+    //     stream.write_all(&format!("{}", res).as_bytes()).unwrap();
+    // }
     stream.shutdown(std::net::Shutdown::Write);
 }
 
