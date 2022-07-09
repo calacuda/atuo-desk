@@ -25,32 +25,32 @@ fn main() {
     }
 }
 
-fn find_loadout(fname: String) -> String {
-    /*
-     * finds the desired loadout file either in the loadout dir, cwd, or the path provided.
-     */
-    let paths = vec![
-        format!("~/.config/desktop-automater/layouts/{}.yml", fname),
-        format!("~/.config/desktop-automater/layouts/{}.yaml", fname),
-        fname.clone(),
-        format!("~/.config/desktop-automater/layouts/{}", fname),
-    ];
-
-    for fp in paths
-        .into_iter()
-        .map(|x| shellexpand::full(&x).unwrap().to_string())
-    {
-        if Path::new(&fp).exists() {
-            return std::fs::canonicalize(&fp.clone())
-                .unwrap()
-                .into_os_string()
-                .into_string()
-                .unwrap();
-        }
-    }
-    println!("could not find the loadout file named {}", fname);
-    exit(1);
-}
+// fn find_loadout(fname: String) -> String {
+//     /*
+//      * finds the desired loadout file either in the loadout dir, cwd, or the path provided.
+//      */
+//     let paths = vec![
+//         format!("~/.config/desktop-automater/layouts/{}.yml", fname),
+//         format!("~/.config/desktop-automater/layouts/{}.yaml", fname),
+//         fname.clone(),
+//         format!("~/.config/desktop-automater/layouts/{}", fname),
+//     ];
+//
+//     for fp in paths
+//         .into_iter()
+//         .map(|x| shellexpand::full(&x).unwrap().to_string())
+//     {
+//         if Path::new(&fp).exists() {
+//             return std::fs::canonicalize(&fp.clone())
+//                 .unwrap()
+//                 .into_os_string()
+//                 .into_string()
+//                 .unwrap();
+//         }
+//     }
+//     println!("could not find the loadout file named {}", fname);
+//     exit(1);
+// }
 
 fn send_data(data: String, server_soc: String) -> Vec<u8> {
     let mut stream = match UnixStream::connect(&server_soc) {
@@ -97,7 +97,7 @@ fn send_data(data: String, server_soc: String) -> Vec<u8> {
 
 fn handle_loadout(args: ArgMatches, server_soc: String) {
     let input_loadout_fname: String = args.get_one::<String>("loadout").unwrap().clone();
-    let loadout_path = find_loadout(input_loadout_fname);
+    let loadout_path = input_loadout_fname; // find_loadout(input_loadout_fname);
     println!(
         "loading the {} loadout...",
         Path::new(&loadout_path).to_str().unwrap()
