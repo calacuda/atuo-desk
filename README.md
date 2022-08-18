@@ -28,9 +28,8 @@ see [spec.md](spec.md)
 (for the future)
 
 - [x] 1. write a [Mycroft](https://mycroft-ai.gitbook.io/docs/) skill to add a voice control feature
-- [ ] 2. ~~add VERY basic web browser control. (prob using the gecko/chromium drives. this would make it easier to support firefox/chromium and most derivatives with the same code base.)~~ (no longer important but i might want to get to it eventually)   
-- [ ] 3. support for finding bspwm nodes by name. (so one could say, "go back to alacritty/firefox" in mycroft.)
-- [ ] 4. support for KDE.
+- [ ] 2. support for finding bspwm nodes by name. (so one could say, "go back to alacritty/firefox" in the mycroft skill.)
+- [ ] 3. support for KDE.
 
 ## TODOs:
 (things planned for the immediate/foreseeable future)
@@ -43,6 +42,7 @@ see [spec.md](spec.md)
 - [x] make layout configured with yaml
 - [ ] make layout function idempotent
 - [ ] write an ensure_file and make default configs file
+- [ ] when launching a program make it use `gtklaunch` (maybe also `coproc`?) to launch desktop files. 
 
 ## development history and schedule:
 
