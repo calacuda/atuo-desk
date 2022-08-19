@@ -1,11 +1,12 @@
 # desktop-automater
+---
 Controls Linux desktop environments and tiling window managers. It uses Unix sockets to handle communication with the client program. Development is currently focused on the [BSPWM](https://github.com/baskerville/bspwm) tiling window manager.
 
 ---
 
 ## overview:
 
-Desktop automator designed to allow programmatic control of the desktop environments and general system stuff. It runs as a service in the background and is controlled via a client; the two communicate over a [Unix Domain Socket](https://en.wikipedia.org/wiki/Unix_domain_socket) (UDS, IPC). The project was started as an excuse to experiment with Unix Sockets, but with a few additions could be quite useful! As of now it is only compatible with [BSPWM](https://github.com/baskerville/bspwm) as that is the primary environment I currently use. However support for desktop environments (DE), more tiling window managers, and floating window managers is planned for the future.
+Desktop automator designed to allow programmatic control of the desktop environments and general system stuff. It runs as a service in the background and is controlled via a client; the two communicate over a [Unix Domain Socket](https://en.wikipedia.org/wiki/Unix_domain_socket) (UDS, IPC). The project was started as an excuse to experiment with Unix Sockets, but a few additions to the original scope have made it quite useful! As of now it is only compatible with [BSPWM](https://github.com/baskerville/bspwm) as that is the environment I currently use. However support for more tiling window managers, and (maybe) floating window managers is planned for the future.
 
 ## advantages:
 
@@ -31,6 +32,7 @@ see [spec.md](spec.md)
 
 - [x] 1. write a [Mycroft](https://mycroft-ai.gitbook.io/docs/) skill to add a voice control feature
 - [ ] 2. support for finding bspwm nodes by name. (so one could say, "go back to alacritty/firefox" in the mycroft skill.)
+- [ ] 3. write a rofi script to search through layouts.
 
 ## TODOs:
 (things planned for the immediate/foreseeable future)
@@ -53,5 +55,5 @@ see [spec.md](spec.md)
 - [x] 2. rewrite in Rust/Golang. (this was done in Rust)
 - [x] 3. add misc features.
 - [x] 4. write systemd service
-- [x] 5. add mycroft support
-- [ ] 6. finish bspwm support <= we are working on this. (everything below this is subject to change)
+- [x] 5. add mycroft support ([repo](https://github.com/calacuda/mycroft-linux-control-skill))
+- [ ] 6. add finishing touches to bspwm support <= we are working on this. (everything below this is subject to change)
