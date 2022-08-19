@@ -1,0 +1,23 @@
+[package]
+name = "auto-desk"
+version = "0.2.0"
+edition = "2021"
+
+[[bin]]
+name = "desktop-automater"
+path = "src/server/main.rs"
+
+[[bin]]
+name = "auto-desk"
+path = "src/client/main.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = "3.2.8"
+shellexpand = "2.1.0"
+configparser = "3.0.0"
+rdev = "0.5.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.8.24"
+freedesktop_entry_parser = "1.3.0"

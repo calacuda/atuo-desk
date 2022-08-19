@@ -37,9 +37,9 @@ see [spec.md](spec.md)
 
 - [ ] change between full screen, tiled, floating, and pseudo_tiled.
 - [x] add simple xrandr/autorandr controls
+- [x] restructure directories to be more rusty.
 - [ ] add pass through for querying BSPWM.
 - [ ] add better documentation. (ongoing)
-- [ ] add better error messages.
 - [x] make layout configured with yaml
 - [ ] make layout function idempotent (add an option to only open the program if not already open))
 - [ ] write an ensure_file and make default configs file
