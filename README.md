@@ -23,6 +23,8 @@ see [spec.md](spec.md)
 - playerctl
 - xbacklight (plans to remove in future)
 - xrandr
+- gtk-launch
+- coproc
 
 ## planned features/ideas for the future:
 (for the future)
@@ -42,7 +44,7 @@ see [spec.md](spec.md)
 - [x] make layout configured with yaml
 - [ ] make layout function idempotent
 - [ ] write an ensure_file and make default configs file
-- [ ] when launching a program make it use `gtklaunch` (maybe also `coproc`?) to launch desktop files. 
+- [ ] when launching a program make it use `gtk-launch` (maybe also `coproc`?) to launch desktop files.
 
 ## development history and schedule:
 

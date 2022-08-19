@@ -39,27 +39,38 @@ pub fn open_on_desktop(spath: &str, raw_args: &str) -> u8 {
         return 7;
     }
 
+    let (program, desktop) = (&args[0], &args[1]);
+
     let _ = set_current_dir(Path::new(&shellexpand::tilde("~/").to_string()));
 
-    println!("[LOG] running {} on desktop {}:", args[0], args[1]);
+    println!("[LOG] running {} on desktop {}:", program, desktop);
 
-    if send(spath, &format!("desktop {} -f", args[1])) > 0 {
+    if send(spath, &format!("desktop {} -f", desktop)) > 0 {
         return 3;
     }
 
     let init_nodes_n = query(spath, "query -N -d").len();
 
-    let process = match Command::new(&args[0])
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-    {
+    let cmd = if program.ends_with(".desktop") {
+        Command::new("gtk-launch")
+            .arg(program)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+    } else {
+        Command::new(program)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+    };
+
+    let process = match cmd {
         Ok(_) => {
-            println!("[LOG] program {} launched", args[0]);
+            println!("[LOG] program {} launched", program);
             0
         }
         Err(e) => {
-            println!("[ERROR] program {} could not be launched: {}", args[0], e);
+            println!("[ERROR] program {} could not be launched: {}", program, e);
             return 4;
         }
     };
@@ -117,6 +128,7 @@ fn make_api(message: &str) -> Vec<u8> {
 }
 
 pub fn send(spath: &str, message: &str) -> u8 {
+    // println!("message :  {}", message);
     match UnixStream::connect(spath) {
         Ok(mut stream) => {
             match stream.write_all(&make_api(message)) {
@@ -134,6 +146,8 @@ pub fn send(spath: &str, message: &str) -> u8 {
                 println!("[ERROR] BSPWM error: {}", String::from_utf8(res).unwrap());
                 6
             } else {
+                // use std::str;
+                // println!("res :  {}", str::from_utf8(&res).unwrap());
                 0
             };
         }

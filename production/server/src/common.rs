@@ -63,13 +63,27 @@ pub fn get_layout_file(file_name: &str) -> Result<String, ()> {
 
 pub fn open_program(program: &str) -> u8 {
     println!("[LOG] running: {}", program);
-    let _process = Command::new(program)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn();
+    let process = if program.ends_with(".desktop") {
+        Command::new("gtk-launch")
+            .arg(program)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+    } else {
+        Command::new(program)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+    };
+
+    // Command::new(program)
+    //     .stdout(Stdio::null())
+    //     .stderr(Stdio::null())
+    //     .spawn();
+
     // .output()
     // .expect("failed to execute process");
-    return match _process {
+    return match process {
         Ok(_) => {
             println!("[LOG] program {} launched", program);
             0

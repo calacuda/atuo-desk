@@ -15,3 +15,4 @@ rdev = "0.5.1"
 # freedesktop_entry_parser = "1.3.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.8.24"
+freedesktop_entry_parser = "1.3.0"

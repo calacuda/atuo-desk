@@ -1,17 +1,18 @@
 use configparser::ini::Ini;
+use freedesktop_entry_parser::parse_entry;
+use serde::{Deserialize, Serialize};
+use serde_yaml;
 use shellexpand;
 use std::collections::HashMap;
 use std::error::Error;
-// use std::io::prelude::*;
 use std::fs::read_to_string;
 use std::io::Read;
 use std::io::Write;
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::{thread, time};
+// use std::io::prelude::*;
 // use yaml_rust::{YamlLoader, Yaml};
 // use unix_socket::Incoming;
-use serde::{Deserialize, Serialize};
-use serde_yaml;
 
 mod bspwm;
 mod common;
@@ -62,50 +63,82 @@ fn load_from_layout(layout_file: String, spath: &str) -> u8 {
     return 0;
 }
 
+fn get_exec(program: &Program) -> String {
+    return match parse_entry(format!("/usr/share/applications/{}", &program.name)) {
+        Ok(entry) => entry
+            .section("Desktop Entry")
+            .attr("Name")
+            .expect(&program.name)
+            .to_string(),
+        Err(_) => program.name.clone(),
+    };
+}
+
 fn set_up_desktop(
     desktop_name: &str,
     programs: &Vec<Program>,
     spath: &str,
-    all_rules: &mut Vec<String>,
+    // all_rules: &mut Vec<String>,
 ) -> u8 {
     for program in programs {
-        // program = program.to_owned();
+        let exec = get_exec(program).to_lowercase();
         let rules = [
             format!(
                 "{}:{} desktop={}",
-                program.name[0..1].to_uppercase() + &program.name[1..],
-                program.name,
+                exec[0..1].to_uppercase() + &exec[1..],
+                exec,
                 desktop_name
             ),
-            format!("{} desktop={}", program.name, desktop_name),
             format!(
                 "{}:{} desktop={}",
-                program.name[0..1].to_uppercase() + &program.name[1..],
-                program.name[0..1].to_uppercase() + &program.name[1..],
+                exec[0..1].to_uppercase() + &exec[1..],
+                exec[0..1].to_uppercase() + &exec[1..],
                 desktop_name
             ),
+            format!("{}:{} desktop={}", exec, exec, desktop_name),
+            format!("*:{} desktop={}", exec, desktop_name),
+            format!(
+                "{} desktop={}",
+                exec[0..1].to_uppercase() + &exec[1..],
+                desktop_name
+            ),
+            format!("{} desktop={}", exec, desktop_name),
         ];
 
         for rule in &rules {
-            all_rules.push(rule.to_owned());
-            if bspwm::send(spath, &format!("rule -a {} --one-shot", &rule)) > 0 {
+            // all_rules.push(rule.to_owned());
+            if bspwm::send(spath, &format!("rule -a {} follow=off -o", &rule)) > 0 {
                 return 3;
             }
         }
 
-        let error_code =
-            bspwm::open_on_desktop(spath, &format!("{} {}", &program.name, desktop_name));
+        thread::sleep(time::Duration::from_millis(100));
+
+        let error_code = common::open_program(&format!("{}", &program.name));
+
+        // bspwm::open_on_desktop(spath, &format!("{} {}", &program.name, desktop_name));
+        let t = match program.delay {
+            Some(times) => time::Duration::from_millis(100 * times as u64),
+            None => time::Duration::from_millis(1500),
+        };
+
         if error_code > 0 {
             return error_code;
         }
-        match program.delay {
-            Some(times) => {
-                let t = time::Duration::from_millis(100);
-                for _ in 0..times {
-                    thread::sleep(t);
-                }
+
+        thread::sleep(t);
+
+        // use std::process::Command;
+        // println!("rules:");
+        // Command::new("bspc").arg("rule").arg("-l").spawn();
+        // println!("======");
+
+        for rule in &rules {
+            // all_rules.push(rule.to_owned());
+            // println!("{} | {}", exec, rule);
+            if bspwm::send(spath, &format!("rule -r {}", &rule)) > 0 {
+                return 3;
             }
-            None => {}
         }
     }
     return 0;
@@ -115,30 +148,46 @@ fn load_from_yaml(layout_file: String, spath: &str, fname: &str) -> u8 {
     let layouts: Vec<DesktopLayout> = match serde_yaml::from_str(&layout_file) {
         Ok(data) => data,
         Err(e) => {
-            println!("[ERROR] could parse yaml layout file {} {}", fname, e);
+            println!("[ERROR] could not parse yaml layout file {}: {}", fname, e);
             return 4;
         }
     };
-    let mut all_rules = Vec::new();
+    // let mut all_rules = Vec::new();
+
+    let mut launchers = Vec::new();
 
     for layout in layouts {
         // get desktop number
         let desktop_num = format!("{}", layout.desktop);
         // get programs
         let programs = layout.programs;
+        // make tmp s_path.
+        let tmp_spath = spath.to_string();
         // set up desktop
-        let err_code = set_up_desktop(&desktop_num, &programs, spath, &mut all_rules);
+        let t = thread::spawn(move || set_up_desktop(&desktop_num, &programs, &tmp_spath));
+        launchers.push(t);
+        // let err_code = set_up_desktop(&desktop_num, &programs, spath, &mut all_rules);
+    }
+
+    for launcher in launchers {
+        let err_code = match launcher.join() {
+            Ok(ec) => ec,
+            Err(e) => {
+                println!("[ERROR] got unknown error: {:?}", e);
+                2
+            }
+        };
         if err_code > 0 {
             return err_code;
         }
     }
 
-    println!("[LOG] running rules...");
-    for rule in &all_rules {
-        if bspwm::send(spath, &format!("rule -r {}", &rule)) > 0 {
-            return 3;
-        }
-    }
+    // // println!("[LOG] running rules...");
+    // for rule in &all_rules {
+    //     if bspwm::send(spath, &format!("rule -r {}", &rule)) > 0 {
+    //         return 3;
+    //     }
+    // }
 
     return 0;
 }
