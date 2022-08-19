@@ -112,7 +112,7 @@ fn set_up_desktop(desktop_name: &str, programs: &Vec<Program>, spath: &str) -> u
 
         // bspwm::open_on_desktop(spath, &format!("{} {}", &program.name, desktop_name));
         let t = match program.delay {
-            Some(times) => time::Duration::from_millis(100 * times as u64),
+            Some(times) => time::Duration::from_millis(1000 * times as u64),
             None => time::Duration::from_millis(1250),
         };
 
