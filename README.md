@@ -32,7 +32,7 @@ see [spec.md](spec.md)
 
 - [x] 1. write a [Mycroft](https://mycroft-ai.gitbook.io/docs/) skill to add a voice control feature
 - [ ] 2. support for finding bspwm nodes by name. (so one could say, "go back to alacritty/firefox" in the mycroft skill.)
-- [ ] 3. write a rofi script to search through layouts.
+- [ ] 3. write a rofi script to search through and select layouts.
 
 ## TODOs:
 (things planned for the immediate/foreseeable future)
