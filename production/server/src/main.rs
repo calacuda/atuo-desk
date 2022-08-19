@@ -74,12 +74,7 @@ fn get_exec(program: &Program) -> String {
     };
 }
 
-fn set_up_desktop(
-    desktop_name: &str,
-    programs: &Vec<Program>,
-    spath: &str,
-    // all_rules: &mut Vec<String>,
-) -> u8 {
+fn set_up_desktop(desktop_name: &str, programs: &Vec<Program>, spath: &str) -> u8 {
     for program in programs {
         let exec = get_exec(program).to_lowercase();
         let rules = [
@@ -106,7 +101,6 @@ fn set_up_desktop(
         ];
 
         for rule in &rules {
-            // all_rules.push(rule.to_owned());
             if bspwm::send(spath, &format!("rule -a {} follow=off -o", &rule)) > 0 {
                 return 3;
             }
@@ -119,7 +113,7 @@ fn set_up_desktop(
         // bspwm::open_on_desktop(spath, &format!("{} {}", &program.name, desktop_name));
         let t = match program.delay {
             Some(times) => time::Duration::from_millis(100 * times as u64),
-            None => time::Duration::from_millis(1500),
+            None => time::Duration::from_millis(1250),
         };
 
         if error_code > 0 {
@@ -128,13 +122,7 @@ fn set_up_desktop(
 
         thread::sleep(t);
 
-        // use std::process::Command;
-        // println!("rules:");
-        // Command::new("bspc").arg("rule").arg("-l").spawn();
-        // println!("======");
-
         for rule in &rules {
-            // all_rules.push(rule.to_owned());
             // println!("{} | {}", exec, rule);
             if bspwm::send(spath, &format!("rule -r {}", &rule)) > 0 {
                 return 3;
@@ -166,7 +154,6 @@ fn load_from_yaml(layout_file: String, spath: &str, fname: &str) -> u8 {
         // set up desktop
         let t = thread::spawn(move || set_up_desktop(&desktop_num, &programs, &tmp_spath));
         launchers.push(t);
-        // let err_code = set_up_desktop(&desktop_num, &programs, spath, &mut all_rules);
     }
 
     for launcher in launchers {
@@ -181,13 +168,6 @@ fn load_from_yaml(layout_file: String, spath: &str, fname: &str) -> u8 {
             return err_code;
         }
     }
-
-    // // println!("[LOG] running rules...");
-    // for rule in &all_rules {
-    //     if bspwm::send(spath, &format!("rule -r {}", &rule)) > 0 {
-    //         return 3;
-    //     }
-    // }
 
     return 0;
 }
@@ -215,21 +195,23 @@ fn load_layout(spath: &str, args: &str) -> u8 {
 
     println!("[LOG] loading layout {}", file_path);
 
-    return if file_path.ends_with(".yml") || file_path.ends_with(".yaml") {
+    // stop the window manager from following to the newest window. not actually nessesary.
+    bspwm::send(&spath, "config ignore_ewmh_focus true");
+
+    let error_code = if file_path.ends_with(".yml") || file_path.ends_with(".yaml") {
         load_from_yaml(layout_file, spath, &file_path)
     } else {
         load_from_layout(layout_file, spath)
     };
+
+    bspwm::send(&spath, "config ignore_ewmh_focus false");
+
+    return error_code;
 }
 
 fn write_shutdown(stream: &mut UnixStream, res: u8) {
     let _ = stream.write(&[res]);
     let _ = stream.write_all(&format!("{}", res).as_bytes()).unwrap();
-    // if res > 0 {
-    //     stream.write_all(&format!("{}", res).as_bytes()).unwrap();
-    // } else {
-    //     stream.write_all(&format!("{}", res).as_bytes()).unwrap();
-    // }
     let _ = stream.shutdown(std::net::Shutdown::Write);
 }
 

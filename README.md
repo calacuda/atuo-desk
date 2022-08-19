@@ -31,18 +31,17 @@ see [spec.md](spec.md)
 
 - [x] 1. write a [Mycroft](https://mycroft-ai.gitbook.io/docs/) skill to add a voice control feature
 - [ ] 2. support for finding bspwm nodes by name. (so one could say, "go back to alacritty/firefox" in the mycroft skill.)
-- [ ] 3. support for KDE.
 
 ## TODOs:
 (things planned for the immediate/foreseeable future)
 
-- [ ] add support for KDE
 - [ ] change between full screen, tiled, floating, and pseudo_tiled.
 - [x] add simple xrandr/autorandr controls
 - [ ] add pass through for querying BSPWM.
 - [ ] add better documentation. (ongoing)
+- [ ] add better error messages.
 - [x] make layout configured with yaml
-- [ ] make layout function idempotent
+- [ ] make layout function idempotent (add an option to only open the program if not already open))
 - [ ] write an ensure_file and make default configs file
 - [x] when launching a program make it use `gtk-launch` to launch desktop files.
 - [x] make setting of layouts multi-threaded.
@@ -56,4 +55,3 @@ see [spec.md](spec.md)
 - [x] 4. write systemd service
 - [x] 5. add mycroft support
 - [ ] 6. finish bspwm support <= we are working on this. (everything below this is subject to change)
-- [ ] 7. add support for KDE
