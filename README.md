@@ -19,13 +19,13 @@ see [spec.md](spec.md)
 
 ## dependencies:
 - systemd
-- loginctl
+- loginctl (plans to remove in future)
 - alsa (plans to remove in future)
-- playerctl
+- playerctl (plans to remove in future)
 - xbacklight (plans to remove in future)
-- xrandr
+- xrandr (plans to remove in future)
 - gtk-launch
-- coproc
+- xdotool
 
 ## planned features/ideas for the future:
 (for the future)

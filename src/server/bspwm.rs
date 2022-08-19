@@ -6,7 +6,7 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 use std::{thread, time};
 
-fn query(spath: &str, message: &str) -> String {
+pub fn query(spath: &str, message: &str) -> String {
     match UnixStream::connect(spath) {
         Ok(mut stream) => {
             match stream.write_all(&make_api(message)) {

@@ -1,5 +1,6 @@
 use configparser::ini::Ini;
 use freedesktop_entry_parser::parse_entry;
+use procfs::process;
 use serde::{Deserialize, Serialize};
 use serde_yaml;
 use shellexpand;
@@ -10,24 +11,23 @@ use std::io::Read;
 use std::io::Write;
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::{thread, time};
-// use std::io::prelude::*;
-// use yaml_rust::{YamlLoader, Yaml};
-// use unix_socket::Incoming;
+use xdotool::window::get_window_pid;
 
 mod bspwm;
 mod common;
 // mod free_desktop;
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 struct Program {
     name: String,
     state: Option<String>,
     delay: Option<u8>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 struct DesktopLayout {
     desktop: u8,
+    asyncro: Option<bool>,
     programs: Vec<Program>,
 }
 
@@ -74,62 +74,147 @@ fn get_exec(program: &Program) -> String {
     };
 }
 
-fn set_up_desktop(desktop_name: &str, programs: &Vec<Program>, spath: &str) -> u8 {
-    for program in programs {
-        let exec = get_exec(program).to_lowercase();
-        let rules = [
-            format!(
-                "{}:{} desktop={}",
-                exec[0..1].to_uppercase() + &exec[1..],
-                exec,
-                desktop_name
-            ),
-            format!(
-                "{}:{} desktop={}",
-                exec[0..1].to_uppercase() + &exec[1..],
-                exec[0..1].to_uppercase() + &exec[1..],
-                desktop_name
-            ),
-            format!("{}:{} desktop={}", exec, exec, desktop_name),
-            format!("*:{} desktop={}", exec, desktop_name),
-            format!(
-                "{} desktop={}",
-                exec[0..1].to_uppercase() + &exec[1..],
-                desktop_name
-            ),
-            format!("{} desktop={}", exec, desktop_name),
-        ];
+fn run_exec(exec: &String, desktop_name: &str, program: &Program, spath: &str) -> u8 {
+    let rules = [
+        format!(
+            "{}:{} desktop={}",
+            exec[0..1].to_uppercase() + &exec[1..],
+            exec,
+            desktop_name
+        ),
+        format!(
+            "{}:{} desktop={}",
+            exec[0..1].to_uppercase() + &exec[1..],
+            exec[0..1].to_uppercase() + &exec[1..],
+            desktop_name
+        ),
+        format!("{}:{} desktop={}", exec, exec, desktop_name),
+        format!("*:{} desktop={}", exec, desktop_name),
+        format!(
+            "{} desktop={}",
+            exec[0..1].to_uppercase() + &exec[1..],
+            desktop_name
+        ),
+        format!("{} desktop={}", exec, desktop_name),
+    ];
 
-        for rule in &rules {
-            if bspwm::send(spath, &format!("rule -a {} follow=off -o", &rule)) > 0 {
-                return 3;
-            }
-        }
-
-        thread::sleep(time::Duration::from_millis(100));
-
-        let error_code = common::open_program(&format!("{}", &program.name));
-
-        // bspwm::open_on_desktop(spath, &format!("{} {}", &program.name, desktop_name));
-        let t = match program.delay {
-            Some(times) => time::Duration::from_millis(1000 * times as u64),
-            None => time::Duration::from_millis(1250),
-        };
-
-        if error_code > 0 {
-            return error_code;
-        }
-
-        thread::sleep(t);
-
-        for rule in &rules {
-            // println!("{} | {}", exec, rule);
-            if bspwm::send(spath, &format!("rule -r {}", &rule)) > 0 {
-                return 3;
-            }
+    for rule in &rules {
+        if bspwm::send(spath, &format!("rule -a {} follow=off -o", &rule)) > 0 {
+            return 3;
         }
     }
+
+    // thread::sleep(time::Duration::from_millis(100));
+
+    let error_code = common::open_program(&format!("{}", &program.name));
+
+    // bspwm::open_on_desktop(spath, &format!("{} {}", &program.name, desktop_name));
+    let t = match program.delay {
+        Some(times) => time::Duration::from_millis(500 * times as u64),
+        None => time::Duration::from_millis(500),
+    };
+
+    if error_code > 0 {
+        return error_code;
+    }
+
+    thread::sleep(t);
+
+    for rule in &rules {
+        // println!("{} | {}", exec, rule);
+        if bspwm::send(spath, &format!("rule -r {}", &rule)) > 0 {
+            return 3;
+        }
+    }
+
     return 0;
+}
+
+fn remove_present(progs: &Vec<Program>, execs: &mut Vec<String>) -> Vec<Program> {
+    let mut programs = Vec::new();
+    for program in progs {
+        let prog = &get_exec(&program).to_lowercase();
+        if execs.contains(&prog) {
+            let i = execs.iter().position(|x| x == prog).unwrap();
+            println!("removeing {} at position {}", prog, i);
+            execs.remove(i);
+        } else {
+            programs.push(program.clone());
+        }
+    }
+
+    return programs;
+}
+
+fn get_progs(desktop_name: &str, programs: &Vec<Program>, spath: &str) -> Vec<Program> {
+    let res = bspwm::query(spath, &format!("query -N -d {}", desktop_name));
+    let window_ids = res.trim().split('\n');
+    // println!("window_ids :  {:?}", window_ids);
+    let mut execs = Vec::new();
+    // let prog_names = Vec::from_iter(programs.into_iter().map(|x| get_exec(x).to_lowercase()));
+
+    for id in window_ids {
+        // println!("id :  {} | d :  {}", id, desktop_name);
+        let pid = match String::from_utf8(get_window_pid(id).stdout) {
+            Ok(pid) => match pid.trim().parse::<i32>() {
+                Ok(p) => p,
+                Err(_) => 0,
+            },
+            Err(_) => 0,
+        };
+
+        let exec = match process::Process::new(pid) {
+            Ok(proc) => match proc.cmdline() {
+                Ok(path) => {
+                    let p = Vec::from_iter(path[0].split('/'));
+                    p[p.len() - 1].to_string()
+                }
+                Err(_) => String::new(),
+            },
+            Err(_) => String::new(),
+        };
+        execs.push(exec.to_lowercase());
+    }
+
+    let progs = remove_present(programs, &mut execs);
+
+    return progs;
+}
+
+fn set_up_desktop(desktop_name: &str, programs: &Vec<Program>, spath: &str) -> Vec<u8> {
+    let progs = get_progs(desktop_name, programs, spath);
+    let mut ecs = Vec::new();
+
+    for program in progs {
+        let exec = get_exec(&program).to_lowercase();
+        let ec = run_exec(&exec, desktop_name, &program, spath);
+        ecs.push(ec);
+        if ec > 0 {
+            println!(
+                "[ERROR] count not launch {} on desktop {}.",
+                program.name, desktop_name
+            );
+        }
+    }
+
+    return ecs;
+}
+
+fn init_layout(spath: &str, layout: &DesktopLayout) -> Vec<u8> {
+    let desktop_num = format!("{}", layout.desktop);
+    let programs = layout.programs.clone();
+    let tmp_spath = spath.to_string();
+    set_up_desktop(&desktop_num, &programs, &tmp_spath)
+}
+
+fn init_layouts(spath: &str, layouts: &Vec<DesktopLayout>) -> Vec<u8> {
+    let mut res_codes = Vec::new();
+
+    for layout in layouts {
+        res_codes.append(&mut init_layout(&spath, &layout));
+    }
+
+    res_codes
 }
 
 fn load_from_yaml(layout_file: String, spath: &str, fname: &str) -> u8 {
@@ -140,32 +225,41 @@ fn load_from_yaml(layout_file: String, spath: &str, fname: &str) -> u8 {
             return 4;
         }
     };
-    // let mut all_rules = Vec::new();
+
+    let mut async_layouts = Vec::new();
+    let mut sync_layouts = Vec::new();
+
+    for layout in layouts {
+        match layout.asyncro {
+            Some(b) if b => async_layouts.push(layout),
+            _ => sync_layouts.push(layout),
+        }
+    }
 
     let mut launchers = Vec::new();
 
-    for layout in layouts {
-        // get desktop number
-        let desktop_num = format!("{}", layout.desktop);
-        // get programs
-        let programs = layout.programs;
-        // make tmp s_path.
-        let tmp_spath = spath.to_string();
-        // set up desktop
-        let t = thread::spawn(move || set_up_desktop(&desktop_num, &programs, &tmp_spath));
-        launchers.push(t);
+    let tmp_spath = spath.to_owned().clone();
+    launchers.push(thread::spawn(move || {
+        init_layouts(&tmp_spath, &sync_layouts)
+    }));
+
+    for layout in async_layouts {
+        let tmp_spath = spath.to_owned().clone();
+        launchers.push(thread::spawn(move || init_layout(&tmp_spath, &layout)));
     }
 
     for launcher in launchers {
-        let err_code = match launcher.join() {
-            Ok(ec) => ec,
+        let err_codes = match launcher.join() {
+            Ok(ecs) => ecs,
             Err(e) => {
                 println!("[ERROR] got unknown error: {:?}", e);
-                2
+                vec![2]
             }
         };
-        if err_code > 0 {
-            return err_code;
+        for ec in err_codes {
+            if ec > 0 {
+                return ec;
+            }
         }
     }
 
