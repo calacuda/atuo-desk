@@ -46,6 +46,7 @@ see [spec.md](spec.md)
 - [ ] write an ensure_file and make default configs file
 - [x] when launching a program make it use `gtk-launch` to launch desktop files.
 - [x] make setting of layouts multi-threaded.
+- [ ] write a rofi script to select between layouts.
 
 ## development history and schedule:
 
