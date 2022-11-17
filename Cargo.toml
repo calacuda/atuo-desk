@@ -1,6 +1,6 @@
 [package]
 name = "auto-desk"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 
 [[bin]]
@@ -11,15 +11,32 @@ path = "src/server/main.rs"
 name = "auto-desk"
 path = "src/client/main.rs"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "auto_desk"
+path = "workspaces/qtile-ctl/src/qtile/lib.rs"
+
+[workspace]
+members = [
+    "workspaces/bspwm",
+    "workspaces/qtile",
+    "workspaces/common",
+    "workspaces/wm-lib",
+    "workspaces/qtile-ctl"
+]
+
+[features]
+default = ["common"]
+bspwm = ["dep:bspwm"]
+qtile = ["dep:qtile"]
+common = ["systemctl", "media", "dep:common"]
+systemctl = []
+media = []
 
 [dependencies]
 clap = "3.2.8"
 shellexpand = "2.1.0"
 configparser = "3.0.0"
-rdev = "0.5.1"
-serde = { version = "1.0", features = ["derive"] }
-serde_yaml = "0.8.24"
-freedesktop_entry_parser = "1.3.0"
-xdotool = "0.0.2"
-procfs = "0.14.0"
+common = { path = "workspaces/common", optional=true}
+qtile = { path = "workspaces/qtile", optional=true }
+bspwm = { path = "workspaces/bspwm", optional=true }
+qtile-ctl = { path = "workspaces/qtile-ctl", optional=true }

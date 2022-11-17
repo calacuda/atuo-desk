@@ -6,7 +6,7 @@ format: `command arg1 arg2 arg3`
 ~~if a single argument has spaces in it than they should be encoded as `\s`.
 in this example: `open-here tmux\snew\s-d\s-s\sfoobar` the `open-here` command gets `tmux new -d -s foobar` as inputs. this runs the tmux command as a shell command and then exits. this slash s encoding is done to make parsing the commands easier, simpler, and more reliable.~~ (not yet implemented)
 
-once a command is sent to the server it will replay with an exit code (see below)
+once a command is sent to the server it will reply with an exit code (see below)
 
 ## universal commands:
 |command | arguments | description |
@@ -34,11 +34,18 @@ once a command is sent to the server it will replay with an exit code (see below
 ## bspwm commands:
 |command | arguments | description |
 |--------|-----------|-------------|
-|open-at | desktop, program | opens a program on the specified desktop then waits for the program to launch before continuing. |
-|close-focused | N/A | closes the currently focused node (window).|
-|move-to | desktop | moves the currently focused node to the specified desktop|
-|focus-on | desktop | switches focus to the specified desktop|
-|add-mon | monitor | turns monitor on (does not position use `add-mon-r` (add-mon-r not yet implemented) or similar)|
+|`open-at`/`open-on` | desktop, program | opens a program on the specified desktop then waits for the program to launch before continuing. |
+|`close-focused` | N/A | closes the currently focused node (window).|
+|`move-to` | desktop | moves the currently focused node to the specified desktop|
+|`focus-on` | desktop | switches focus to the specified desktop|
+|`add-mon` | monitor | turns monitor on (does not position use `add-mon-r` (add-mon-r not yet implemented) or similar)|
+
+## qtile commands:
+|command | arguments | description |
+|--------|-----------|-------------|
+| `open-at`/`open-on` | `exe`, `wm_class`, `desktop` | runs the program, `exe`, with the window manager class, `wm_class`, on the desktop, `desktop`. |
+| `load-layout` | `layout` | sets up the layout, `layout`. |
+| `focus-on` | `workspace` | switches focus to the group `workspace`. |
 
 ## exit Code:
 |code | description |
@@ -48,23 +55,13 @@ once a command is sent to the server it will replay with an exit code (see below
 |2    |  error running command, check logs
 |3    |  process error-ed out while executing supporting command.
 |4    |  there was an error with the main command
-|5    |  error connecting to BSPWM socket
-|6    |  BSPWM error
-|7    |  too few arguments
+|5    |  error connecting to wm socket
+|6    |  wm error
+|7    |  too few/many arguments
 
 ---
 # design note:
 ---
 ## plug-in system:
 
-it will need some standard for passing data to it.
-
-options for data passing:
-
-- command line arguments for executables (either text or bin). (easiest and allows for abandoning python)
-- ~~if using python, we can define a consistent entry point and wrap other languages as python modules. (python reliant)~~
-
-Ideas:
-
-- executable scripts/binaries that get sourced at run time and stored in a hash map.
-- files that contain list of the commands to be sent over the socket.
+add work spaces and features
