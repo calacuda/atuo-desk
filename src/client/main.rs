@@ -135,7 +135,7 @@ fn get_servers(config_file: &str) -> HashMap<String, Option<String>> {
 }
 
 fn get_server_soc() -> String {
-    return match get_servers(CONFIG_ADR).get("prog-so") {
+    return match get_servers(CONFIG_ADR).get("listen-socket") {
         Some(servers) => match servers.to_owned() {
             Some(socket_adr) => socket_adr,
             None => {
@@ -156,8 +156,8 @@ fn get_server_soc() -> String {
             );
             println!("lines to the file:");
             println!("[SERVER]");
-            println!("bspwm-so = /tmp/bspwm_0_0-socket");
-            println!("prog-so = /tmp/desktop-automater");
+            println!("wm-socket = /tmp/bspwm_0_0-socket");
+            println!("listen-socket = /tmp/desktop-automater");
             "/tmp/desktop-automater".to_owned()
         }
     };

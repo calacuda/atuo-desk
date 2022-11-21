@@ -1,3 +1,4 @@
+// use std::{thread, time};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::io::Read;
@@ -8,6 +9,7 @@ use wm_lib;
 use wm_lib::DesktopLayout;
 use serde::{Deserialize, Serialize};
 use serde_json;
+use common;
 
 const NULL: char = 0 as char;
 
@@ -80,11 +82,23 @@ pub fn open_on_desktop(spath: &str, args: &str) -> u8 {
     }
 
     let (exe, wm_class, desktop) = (data[0], data[1], data[2]);
-    let payload = format!("launch{NULL}{{\"rules\": {{ \"{wm_class}\": [\"{desktop}\"]}}, \"queue\": [\"{exe}\"] }}");
+    let payload = format!("load{NULL}{{\"rules\": {{ \"{wm_class}\": [\"{desktop}\"]}}, \"queue\": [\"{exe}\"] }}");
 
     println!("payload => {}", payload);
 
-    qtile_send(payload, spath)
+    let load_res = qtile_send(payload, spath);
+    // thread::sleep(time::Duration::from_millis(20));
+    let clear_res = qtile_send("clear".to_string(), spath);
+    common::open_program(exe);
+    if clear_res > 0 {
+        println!("failed to clear, got error: {}", clear_res);
+        3
+    } else if load_res > 0 {
+        load_res
+    } else {
+        0
+    }
+    // load_res
 }
 
 /// focus-on
@@ -106,22 +120,42 @@ pub fn load_layout(spath: &str, args: &str) -> u8 {
         Err(n) => return n,
     };
 
-    let payload = match make_payload(layout_yaml) {
-        Ok(payload) => format!("launch{NULL}{}", payload),
+    let payload = match make_payload(&layout_yaml) {
+        Ok(payload) => format!("load{NULL}{}", payload),
         Err(_) => return 2,
     };
 
     println!("payload => {}", payload);
-
-    qtile_send(payload, spath)
+    
+    let load_res = qtile_send(payload, spath);
+    // thread::sleep(time::Duration::from_millis(20));
+    let clear_res = qtile_send("clear".to_string(), spath);
+    
+    if load_res == 0 {
+        for desktop in layout_yaml {
+            for program in desktop.programs {
+                common::open_program(&program.name);
+            }
+        }
+    }
+    
+    if clear_res > 0 {
+        println!("failed to clear, got error: {}", clear_res);
+        3
+    } else if load_res > 0 {
+        load_res
+    } else {
+        0
+    }
+    // load_res
 }
 
-fn make_payload(layouts: Vec<DesktopLayout>) -> Result<String, ()>  {
+fn make_payload(layouts: &Vec<DesktopLayout>) -> Result<String, ()>  {
     let mut payload_struc = QtileCmdData::new();        
     
     for desktop in layouts {
-        for program in desktop.programs {
-            match program.wm_class {
+        for program in &desktop.programs {
+            match &program.wm_class {
                 Some(class) => {
                     payload_struc.add_rules(&class, &desktop.desktop);
                     payload_struc.add_queue(&program.name);

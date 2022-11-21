@@ -11,17 +11,12 @@ path = "src/server/main.rs"
 name = "auto-desk"
 path = "src/client/main.rs"
 
-[lib]
-name = "auto_desk"
-path = "workspaces/qtile-ctl/src/qtile/lib.rs"
-
 [workspace]
 members = [
     "workspaces/bspwm",
     "workspaces/qtile",
     "workspaces/common",
     "workspaces/wm-lib",
-    "workspaces/qtile-ctl"
 ]
 
 [features]
@@ -39,4 +34,4 @@ configparser = "3.0.0"
 common = { path = "workspaces/common", optional=true}
 qtile = { path = "workspaces/qtile", optional=true }
 bspwm = { path = "workspaces/bspwm", optional=true }
-qtile-ctl = { path = "workspaces/qtile-ctl", optional=true }
+tokio = {version = "*", features = ["net"]}

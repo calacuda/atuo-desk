@@ -19,38 +19,14 @@ pub fn open_program(program: &str) -> u8 {
             .stderr(Stdio::null())
             .spawn()
     } else {
-        // let (cmd, arg_s) = match program.split_once(" ") {
-        //     Some(cmd_and_args) => cmd_and_args,
-        //     None => (program, "")
-        // };
-
-        // let mut proc = Command::new(cmd);
-
-        // for arg in args_s.split(" ") {
-        //     proc.args(args)
-        // }
-        // proc.spawn()
-
         Command::new("sh")
             .arg("-c")
             .arg(program)
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()
-
-        // Command::new(program)
-        //     .stdout(Stdio::null())
-        //     .stderr(Stdio::null())
-        //     .spawn()
     };
-
-    // Command::new(program)
-    //     .stdout(Stdio::null())
-    //     .stderr(Stdio::null())
-    //     .spawn();
-
-    // .output()
-    // .expect("failed to execute process");
+    println!("[LOG] ran {}", program);
     return match process {
         Ok(_) => {
             println!("[LOG] program {} launched", program);
@@ -61,8 +37,6 @@ pub fn open_program(program: &str) -> u8 {
             4
         }
     };
-    // println!("[LOG] ran {}", program);
-    // return 0;
 }
 
 fn send_key_stroke(event_type: &EventType) -> u8 {
