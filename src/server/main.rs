@@ -217,25 +217,25 @@ async fn handle_client_qtile(mut stream: UnixStream, layout: &mut Option<qtile::
     let api_res = qtile_api(&cmd, &args, layout);
     match api_res {
         Some(QtileAPI::Layout(layout)) => {
-            println!("Response Code: 0");
+            println!("[DEBUG] Response Code: 0");
             write_shutdown(&mut stream, 0);
             drop(stream);
             Some(layout)
         },
         Some(QtileAPI::Location(location)) => {
-            println!("location: {location}");
+            println!("[DEBUG] location: {location}");
             writes_shutdown(&mut stream, 0, &location);
             drop(stream);
             None
         }
         Some(QtileAPI::Res(ec)) => {
-            println!("Response Code: {ec}");
+            println!("[DEBUG] Response Code: {ec}");
             write_shutdown(&mut stream, ec);
             drop(stream);
             None
         }
         Some(QtileAPI::Clear(should_clear)) => {
-            println!("should clear workspace '{args}'? {}.", if should_clear {"yes"} else {"no"});
+            println!("[DEBUG] should clear workspace '{args}'? {}.", if should_clear {"yes"} else {"no"});
             writes_shutdown(&mut stream, 0, if should_clear {"true"} else {"false"});
             drop(stream);
             None
