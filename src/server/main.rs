@@ -17,6 +17,8 @@ use bspwm;
 #[cfg(feature = "qtile")]
 use qtile;
 
+// TODO: make this just Layout(qtile::QtileCmdData), Res(u8), 
+//       and replace, Location(String) and Clear(bool) wth a "Message" variant.
 #[cfg(feature = "qtile")]
 enum QtileAPI {
     Layout(qtile::QtileCmdData),
