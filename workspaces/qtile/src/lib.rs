@@ -1,14 +1,20 @@
 // use std::{thread, time};
 use std::collections::HashMap;
-use std::collections::HashSet;
+// use std::collections::HashSet;
 use std::io::Read;
 use std::io::Write;
 use std::net::Shutdown;
 use std::os::unix::net::UnixStream;
 use wm_lib;
-use wm_lib::DesktopLayout;
+// use wm_lib::DesktopLayout;
 use serde::{Deserialize, Serialize};
 use serde_json;
+use tokio::time::{sleep, Duration};
+// use std::env;
+// use std::process::Output;
+// use std::process::Command;
+// use pyo3::prelude::*;
+// use pyo3::py_run;
 use common;
 
 const NULL: char = 0 as char;
@@ -17,22 +23,22 @@ type WMClass = String;
 type Desktop = String;
 type Desktops = HashMap<Desktop, bool>;
 type Exe = String;
-type Programs = HashSet<Exe>;
-type Rules = HashMap<WMClass, HashSet<Desktop>>;
+type Programs = Vec<Exe>;
+type Rules = HashMap<WMClass, Vec<Desktop>>;
 
 // #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
-struct QtileCmdData {
-    rules: Rules,
-    queue: Programs,
-    clear: Desktops,
+pub struct QtileCmdData {
+    pub rules: Rules,
+    pub queue: Programs,
+    pub clear: Desktops,
 }
 
 impl QtileCmdData {
     fn new() -> QtileCmdData {
         QtileCmdData {
             rules: HashMap::new(),
-            queue: HashSet::new(),
+            queue: Vec::new(),
             clear: HashMap::new(),
         }
     }
@@ -46,18 +52,33 @@ impl QtileCmdData {
     }
 
     fn add_queue(&mut self, program: &str) {
-        self.queue.insert(program.to_string());
+        self.queue.push(program.to_string());
     }
 
     fn add_rules(&mut self, wmc: &str, desktop: &str) {
         match self.rules.get_mut(wmc) {
-            Some(rules) => {rules.insert(desktop.to_string());},
+            Some(rules) => {rules.push(desktop.to_string());},
             None => {
-                let mut set = HashSet::new();
-                set.insert(desktop.to_string());
+                let mut set = Vec::new();
+                set.push(desktop.to_string());
                 self.rules.insert(wmc.to_string(), set);
             }
         };
+    }
+
+    fn get_location_helper(&mut self, wm_class: &str) -> Option<String> {
+        println!("wm_class :  {wm_class}, rules :  {:?}", self.rules);
+        match self.rules.get_mut(wm_class) {
+            Some(desktops) => desktops.pop(),
+            None => None
+        }
+    }
+
+    fn get_location(&mut self, wm_classes: (&str, &str)) -> Option<String> {
+        match self.get_location_helper(wm_classes.0) {
+            Some(location) => Some(location),
+            None =>  self.get_location_helper(wm_classes.1),
+        }
     }
 }
 
@@ -69,12 +90,41 @@ impl QtileCmdData {
 //     0
 // }
 
+pub fn auto_move(args: &str, layout: &mut Option<QtileCmdData>) -> Result<Option<String>, u8> {
+    // println!("auto-move");
+    // println!("args => {}", args);
+    // println!("layout => {:?}", layout);
+    let arguments = args.splitn(2," ").collect::<Vec<&str>>();
+    if arguments.len() != 2 {
+        println!("[ERROR] wrong number of arguments, {}", arguments.len());
+        return Err(7);
+    }
+
+    let wm_classes = (arguments[0], arguments[1]);
+    println!("[DEBUG] wm_classes: {:?}", wm_classes);
+
+    let location = match layout {
+        Some(layout) => {
+            match layout.get_location(wm_classes) {
+                Some(location) => location,
+                None => {
+                    println!("[DEBUG] wm_class not in layout.");
+                    return Ok(None)
+                }
+            }
+        },
+        None => {
+            println!("[DEBUG] no layout provided.");
+            return Ok(None)
+        }
+    };
+
+    println!("[DEBUG] moving window with class: {:?} to location: {location}, will be handled by qtile.", wm_classes);
+    Ok(Some(format!("{}{location}", 0 as char)))
+}
+
 /// open-at
 pub fn open_on_desktop(spath: &str, args: &str) -> u8 {
-    println!("open_on_desktop");
-    // println!("spath => {}", spath);
-    // println!("args => {}", args);
-
     let data = args.split(" ").collect::<Vec<&str>>();
     
     if data.len() != 3 {
@@ -109,48 +159,12 @@ pub fn focus_on(spath: &str, args: &str) -> u8 {
     0
 }
 
-/// load-layout
-pub fn load_layout(spath: &str, args: &str) -> u8 {
-    println!("load_layout");
-    println!("spath => {}", spath);
-    println!("args => {}", args);
-    
-    let layout_yaml = match wm_lib::get_layout(args) {
+pub fn make_cmd_data(fname: &str) -> Result<QtileCmdData, u8> {
+    let layouts = match wm_lib::get_layout(fname) {
         Ok(layout) => layout,
-        Err(n) => return n,
+        Err(n) => return Err(n),
     };
 
-    let payload = match make_payload(&layout_yaml) {
-        Ok(payload) => format!("load{NULL}{}", payload),
-        Err(_) => return 2,
-    };
-
-    println!("payload => {}", payload);
-    
-    let load_res = qtile_send(payload, spath);
-    // thread::sleep(time::Duration::from_millis(20));
-    let clear_res = qtile_send("clear".to_string(), spath);
-    
-    if load_res == 0 {
-        for desktop in layout_yaml {
-            for program in desktop.programs {
-                common::open_program(&program.name);
-            }
-        }
-    }
-    
-    if clear_res > 0 {
-        println!("failed to clear, got error: {}", clear_res);
-        3
-    } else if load_res > 0 {
-        load_res
-    } else {
-        0
-    }
-    // load_res
-}
-
-fn make_payload(layouts: &Vec<DesktopLayout>) -> Result<String, ()>  {
     let mut payload_struc = QtileCmdData::new();        
     
     for desktop in layouts {
@@ -166,12 +180,53 @@ fn make_payload(layouts: &Vec<DesktopLayout>) -> Result<String, ()>  {
         payload_struc.add_clear(desktop.clear, &desktop.desktop);
     }
 
+    Ok(payload_struc)
+}
+
+/// load-layout
+pub async fn load_layout(spath: &str, args: &str) -> u8 {
+    println!("load_layout");
+    println!("spath => {}", spath);
+    println!("args => {}", args);
+
+    let (payload, programs) = match make_payload(args) {
+        Ok(payload) => payload,
+        Err(ec) => return ec, 
+    };
+
+    println!("payload => {}", payload);
+    
+    let load_res = qtile_send(payload, spath);
+    // thread::sleep(time::Duration::from_millis(20));
+    let clear_res = qtile_send("clear".to_string(), spath);
+
+    sleep(Duration::from_millis(500)).await;
+    
+    if load_res == 0 {
+        for program in programs {
+            common::open_program(&program);
+        }
+    }
+    
+    if clear_res > 0 {
+        println!("failed to clear, got error: {}", clear_res);
+        3
+    } else if load_res > 0 {
+        load_res
+    } else {
+        0
+    }
+}
+
+fn make_payload(fname: &str) -> Result<(String, Vec<String>), u8>  {
+    let payload_struc = make_cmd_data(fname)?;
+
     match serde_json::to_string(&payload_struc) {
-        Ok(jsons) => Ok(jsons),
+        Ok(jsons) => Ok((jsons, payload_struc.queue)),
         Err(e) => {
             println!("[DEBUG] got error while serializing to qtile-data to json.");
             println!("error: {}", e);
-            Err(())
+            Err(4)
         }
     }
 }

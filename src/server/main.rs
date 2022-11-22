@@ -2,9 +2,14 @@ use configparser::ini::Ini;
 use shellexpand;
 use std::collections::HashMap;
 use std::error::Error;
-use std::os::unix::net::{UnixListener, UnixStream};
-use std::thread;
-use std::io::{Read, Write};
+// use std::os::unix::net::{UnixListener, UnixStream};
+use tokio::net::{UnixListener, UnixStream};
+// #[cfg(not(feature = "qtile"))]
+use tokio::task;
+// use std::thread;
+// use std::io::{Read, Write};
+// use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 #[cfg(feature = "common")]
 use common;
 #[cfg(feature = "bspwm")]
@@ -12,15 +17,12 @@ use bspwm;
 #[cfg(feature = "qtile")]
 use qtile;
 
-// #[cfg(feature = "bspwm")]
-// mod bspwm;
-
-// #[cfg(feature = "qtile")]
-// mod qtile;
-
-// #[cfg(feature = "common")]
-// mod common;
-// mod free_desktop;
+#[cfg(feature = "qtile")]
+enum QtileAPI {
+    Layout(qtile::QtileCmdData),
+    Location(String),
+    Res(u8),
+}
 
 fn load_config(
     config_file: &str,
@@ -45,16 +47,22 @@ fn get_servers(config_file: &str) -> HashMap<String, Option<String>> {
 }
 
 fn write_shutdown(stream: &mut UnixStream, res: u8) {
-    let _ = stream.write(&[res]);
-    let _ = stream.write_all(&format!("{}", res).as_bytes()).unwrap();
-    let _ = stream.shutdown(std::net::Shutdown::Write);
+    let _ = stream.try_write(&[res]);
+    // let _ = stream.write_all(&format!("{}", res).as_bytes()).unwrap();
+    let _ = stream.shutdown();
 }
 
-fn read_command(stream: &mut UnixStream) -> String {
+fn writes_shutdown(stream: &mut UnixStream, mesg: &str) {
+    let _ = stream.try_write(mesg.as_bytes());
+    // let _ = stream.write_all(mesg.as_bytes());
+    let _ = stream.shutdown();
+}
+
+async fn read_command(stream: &mut UnixStream) -> String {
     let mut command = String::new();
     // stream.set_nonblocking(false);
-    stream.read_to_string(&mut command).unwrap();
-    let _ = stream.shutdown(std::net::Shutdown::Read);
+    let _ = stream.read_to_string(&mut command).await;
+    let _ = stream.shutdown();
     return command;
 }
 
@@ -118,16 +126,32 @@ fn qtile_switch(cmd: &str, args: &str, spath: &str) -> Option<u8> {
         // "close-focused" => Some(qtile::close_focused(spath)),
         "open-at" | "open-on" => Some(qtile::open_on_desktop(spath, args)),
         "focus-on" => Some(qtile::focus_on(spath, args)),
-        "load-layout" => Some(qtile::load_layout(spath, args)),
         _ => None,
     }
 }
 
-fn switch_board(command: String, spath: &str) -> u8 {
-    let (cmd, args) = match command.split_once(" ") {
-        Some(cmd_args) => cmd_args.to_owned(),
-        None => (command.as_str(), ""),
-    };
+#[cfg(feature = "qtile")]
+fn qtile_api(cmd: &str, args: &str, layout: &mut Option<qtile::QtileCmdData>) -> Option<QtileAPI> {
+    match cmd {
+        // "load-layout" => Some(QtileAPI::layout(qtile::load_layout(args))),
+        "load-layout" => {
+            match qtile::make_cmd_data(args) {
+                Ok(layout) => Some(QtileAPI::Layout(layout)),
+                Err(ec) => Some(QtileAPI::Res(ec)),
+            }
+        }
+        "auto-move" => Some(
+            match qtile::auto_move(args, layout) {
+                Ok(Some(loc)) => QtileAPI::Location(loc),
+                Ok(None) => QtileAPI::Res(0), 
+                Err(ec) => QtileAPI::Res(ec),
+            }
+        ),
+        _ => None,
+    }
+}
+
+async fn switch_board(cmd: &str, args: &str, spath: &str) -> u8 {
 
     let mut fs: Vec<&dyn Fn(&str, &str, &str) -> Option<u8>> = Vec::new();
 
@@ -145,7 +169,7 @@ fn switch_board(command: String, spath: &str) -> u8 {
     fs.push(&media_switch);
 
     for f in fs {
-        match f(cmd, args, spath) {
+        match f(&cmd, &args, spath) {
             Some(res) => return res,
             None => {}
         }
@@ -154,28 +178,92 @@ fn switch_board(command: String, spath: &str) -> u8 {
     1
 }
 
-fn handle_client(mut stream: UnixStream, spath: &str) {
-    let command = read_command(&mut stream);
+fn split_cmd(command: &str) -> (String, String){
+    match command.split_once(" ") {
+        Some((cmd, args)) => (cmd.to_owned(), args.to_owned()),
+        None => (command.to_owned(), String::new()),
+    }
+}
+
+#[cfg(not(feature = "qtile"))]
+async fn handle_client_gen(mut stream: UnixStream, spath: String) {
+    let command = read_command(&mut stream).await;
     // println!("{}", command);
+    let (cmd, args) = split_cmd(&command);
+
 
     // handle comand here
-    // let res: u8 = 0;
-    let res: u8 = switch_board(command, spath);
+    let res: u8 = switch_board(&cmd, &args, &spath).await;
     write_shutdown(&mut stream, res);
     drop(stream)
 }
 
-fn recv_loop(program_socket: &str, wm_socket: &str) -> std::io::Result<()> {
+#[cfg(feature = "qtile")]
+async fn handle_client_qtile(mut stream: UnixStream, layout: &mut Option<qtile::QtileCmdData>, wm_socket: &str) -> Option<qtile::QtileCmdData> {
+    let command = read_command(&mut stream).await;
+    println!("command: {}", command);
+    let (cmd, args) = split_cmd(&command);
+
+    // handle comand here
+    let api_res = qtile_api(&cmd, &args, layout);
+    match api_res {
+        Some(QtileAPI::Layout(layout)) => Some(layout),
+        Some(QtileAPI::Location(location)) => {
+            println!("location: {location}");
+            writes_shutdown(&mut stream, &location);
+            drop(stream);
+            None
+        }
+        Some(QtileAPI::Res(ec)) => {
+            println!("Response Code: {ec}");
+            write_shutdown(&mut stream, ec);
+            drop(stream);
+            None
+        }
+        None => {
+            let res: u8 = switch_board(&cmd, &args, wm_socket).await;
+            write_shutdown(&mut stream, res);
+            drop(stream);
+            None
+        }
+    }
+}
+
+async fn recv_loop(program_socket: &str, wm_socket: &str) -> std::io::Result<()> {
     // println!("recv_loop");
     println!("[LOG] listening on socket: {}", program_socket);
     let listener = UnixListener::bind(program_socket)?;
+    #[cfg(feature = "qtile")]
+    let mut layout: Option<qtile::QtileCmdData> = None;
 
-    for stream in listener.incoming() {
-        match stream {
-            Ok(stream) => {
+    loop {
+        match listener.accept().await {
+            Ok((stream, _addr)) => {
                 /* connection succeeded */
-                let tmp_wms = wm_socket.to_string().clone();
-                thread::spawn(move || handle_client(stream, &tmp_wms));
+                #[cfg(feature = "qtile")]
+                match handle_client_qtile(stream, &mut layout, wm_socket).await {
+                    Some(lo) => {
+                        layout = Some(lo.clone());
+                        println!("[DEBUG] layout: {:?}", lo);
+                        task::spawn(
+                            async move {
+                                for program in lo.queue {
+                                    common::open_program(&program);
+                                }
+                            }
+                        );
+                    }
+                    None => {}
+                }
+                #[cfg(not(feature = "qtile"))]
+                {
+                    let tmp_wms = wm_socket.to_string();
+                    task::spawn(
+                        async move {
+                            handle_client_gen(stream, tmp_wms)
+                        }
+                    );
+                }
             }
             Err(err) => {
                 println!("{:#?}", err);
@@ -190,7 +278,8 @@ fn recv_loop(program_socket: &str, wm_socket: &str) -> std::io::Result<()> {
     Ok(())
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
     let configs: HashMap<String, Option<String>> =
         get_servers(&"~/.config/desktop-automater/config.ini");
     let (prog_so, wm_socket) = match (configs.get("listen-socket"), configs.get("wm-socket")) {
@@ -222,7 +311,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             &prog_so
         ));
     }
-    match recv_loop(&prog_so, &wm_socket) {
+    match recv_loop(&prog_so, &wm_socket).await {
         Ok(_) => {}
         Err(e) => println!("[ERROR] {}", e),
     }

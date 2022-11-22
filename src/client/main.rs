@@ -20,7 +20,7 @@ fn main() {
 
     match subargs.0 {
         "launch" => handle_launch(subargs.1.to_owned(), server_soc),
-        "loadout" => handle_loadout(subargs.1.to_owned(), server_soc),
+        "layout" => handle_layout(subargs.1.to_owned(), server_soc),
         _ => panic!("clap missed that argument! please submit a bug report."),
     }
 }
@@ -87,15 +87,15 @@ fn send_data(data: String, server_soc: String) -> Vec<u8> {
     return response_bytes;
 }
 
-fn handle_loadout(args: ArgMatches, server_soc: String) {
-    let input_loadout_fname: String = args.get_one::<String>("loadout").unwrap().clone();
-    let loadout_path = input_loadout_fname; // find_loadout(input_loadout_fname);
+fn handle_layout(args: ArgMatches, server_soc: String) {
+    let input_layout_fname: String = args.get_one::<String>("layout").unwrap().clone();
+    let layout_path = input_layout_fname; // find_layout(input_layout_fname);
     println!(
-        "loading the {} loadout...",
-        Path::new(&loadout_path).to_str().unwrap()
+        "loading the {} layout...",
+        Path::new(&layout_path).to_str().unwrap()
     );
 
-    let _response_bytes = send_data(format!("load-layout {}", loadout_path), server_soc);
+    let _response_bytes = send_data(format!("load-layout {}", layout_path), server_soc);
 }
 
 fn handle_launch(args: ArgMatches, server_soc: String) {
@@ -178,13 +178,13 @@ fn get_args() -> ArgMatches {
         .about("used to control a linux desktop running BSPWM.")
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .subcommand(
-            SubCommand::with_name("loadout")
-                .help("configure the system with a loadout.yaml file")
+            SubCommand::with_name("layout")
+                .help("configure the system with a layout.yaml file")
                 .arg(
-                    Arg::new("loadout")
+                    Arg::new("layout")
                         // .short('l')
-                        // .long("loadout")
-                        .value_name("LOADOUT.yml")
+                        // .long("layout")
+                        .value_name("LAYOUT.yml")
                         .help("the yaml file describing the desiered desktop configuration.")
                         .takes_value(true)
                         .required(true),
@@ -213,9 +213,9 @@ fn get_args() -> ArgMatches {
         .get_matches();
 }
 
-// fn find_loadout(fname: String) -> String {
+// fn find_layout(fname: String) -> String {
 //     /*
-//      * finds the desired loadout file either in the loadout dir, cwd, or the path provided.
+//      * finds the desired layout file either in the layout dir, cwd, or the path provided.
 //      */
 //     let paths = vec![
 //         format!("~/.config/desktop-automater/layouts/{}.yml", fname),
@@ -236,6 +236,6 @@ fn get_args() -> ArgMatches {
 //                 .unwrap();
 //         }
 //     }
-//     println!("could not find the loadout file named {}", fname);
+//     println!("could not find the layout file named {}", fname);
 //     exit(1);
 // }
