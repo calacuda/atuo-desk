@@ -173,7 +173,7 @@ fn load_config(
 
 fn get_args() -> ArgMatches {
     return App::new("auto-desk")
-        .version("0.1.0")
+        .version("0.4.0")
         .author("Calacuda. <https://github.com/calacuda>")
         .about("used to control a linux desktop running BSPWM.")
         .setting(AppSettings::SubcommandRequiredElseHelp)
