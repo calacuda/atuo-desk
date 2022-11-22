@@ -52,6 +52,7 @@ fn write_shutdown(stream: &mut UnixStream, res: u8) {
     let _ = stream.shutdown();
 }
 
+#[cfg(feature = "qtile")]
 fn writes_shutdown(stream: &mut UnixStream, mesg: &str) {
     let _ = stream.try_write(mesg.as_bytes());
     // let _ = stream.write_all(mesg.as_bytes());
