@@ -207,7 +207,12 @@ async fn handle_client_qtile(mut stream: UnixStream, layout: &mut Option<qtile::
     // handle comand here
     let api_res = qtile_api(&cmd, &args, layout);
     match api_res {
-        Some(QtileAPI::Layout(layout)) => Some(layout),
+        Some(QtileAPI::Layout(layout)) => {
+            println!("Response Code: 0");
+            write_shutdown(&mut stream, 0);
+            drop(stream);
+            Some(layout)
+        },
         Some(QtileAPI::Location(location)) => {
             println!("location: {location}");
             writes_shutdown(&mut stream, &location);
