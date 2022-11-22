@@ -26,14 +26,14 @@ pub fn open_program(program: &str) -> u8 {
             .stderr(Stdio::null())
             .spawn()
     };
-    println!("[LOG] ran {}", program);
+    println!("[LOG] ran '{}'", program);
     return match process {
         Ok(_) => {
-            println!("[LOG] program {} launched", program);
+            println!("[LOG] program '{}' launched", program);
             0
         }
         Err(e) => {
-            println!("[ERROR] program {} could not be launched: {}", program, e);
+            println!("[ERROR] program '{}' could not be launched: '{}'", program, e);
             4
         }
     };

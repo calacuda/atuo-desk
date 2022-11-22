@@ -21,6 +21,7 @@ use qtile;
 enum QtileAPI {
     Layout(qtile::QtileCmdData),
     Location(String),
+    Clear(bool),
     Res(u8),
 }
 
@@ -53,7 +54,8 @@ fn write_shutdown(stream: &mut UnixStream, res: u8) {
 }
 
 #[cfg(feature = "qtile")]
-fn writes_shutdown(stream: &mut UnixStream, mesg: &str) {
+fn writes_shutdown(stream: &mut UnixStream, res_code: u8, mesg: &str) {
+    let _ = stream.try_write(&[res_code]);
     let _ = stream.try_write(mesg.as_bytes());
     // let _ = stream.write_all(mesg.as_bytes());
     let _ = stream.shutdown();
@@ -148,6 +150,12 @@ fn qtile_api(cmd: &str, args: &str, layout: &mut Option<qtile::QtileCmdData>) ->
                 Err(ec) => QtileAPI::Res(ec),
             }
         ),
+        "should-clear" => Some(
+            match qtile::should_clear(args, layout) {
+                Ok(to_clear_or_not_to_clear) => QtileAPI::Clear(to_clear_or_not_to_clear), // that is the question
+                Err(ec) => QtileAPI::Res(ec),
+            }
+        ),
         _ => None,
     }
 }
@@ -216,13 +224,19 @@ async fn handle_client_qtile(mut stream: UnixStream, layout: &mut Option<qtile::
         },
         Some(QtileAPI::Location(location)) => {
             println!("location: {location}");
-            writes_shutdown(&mut stream, &location);
+            writes_shutdown(&mut stream, 0, &location);
             drop(stream);
             None
         }
         Some(QtileAPI::Res(ec)) => {
             println!("Response Code: {ec}");
             write_shutdown(&mut stream, ec);
+            drop(stream);
+            None
+        }
+        Some(QtileAPI::Clear(should_clear)) => {
+            println!("should clear workspace '{args}'? {}.", if should_clear {"yes"} else {"no"});
+            writes_shutdown(&mut stream, 0, if should_clear {"true"} else {"false"});
             drop(stream);
             None
         }

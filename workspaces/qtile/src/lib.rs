@@ -51,8 +51,13 @@ impl QtileCmdData {
         self.clear.insert(data.to_string(), clear);
     }
 
-    fn add_queue(&mut self, program: &str) {
-        self.queue.push(program.to_string());
+    fn add_queue(&mut self, program: &str, args: &Option<Vec<String>>) {
+        self.queue.push(
+            match args {
+                Some(args) => format!("{program} {}", args.join(" ")),
+                None => program.to_string()
+            }
+        );
     }
 
     fn add_rules(&mut self, wmc: &str, desktop: &str) {
@@ -80,6 +85,13 @@ impl QtileCmdData {
             None =>  self.get_location_helper(wm_classes.1),
         }
     }
+
+    fn should_clear(&mut self, group: &str) -> bool {
+        match self.clear.remove(group) {
+            Some(b) => b,
+            None => false,
+        }
+    }
 }
 
 // pub fn move_to(_spath: &str, _args: &str) -> u8 {
@@ -90,10 +102,34 @@ impl QtileCmdData {
 //     0
 // }
 
+pub fn should_clear(args: &str, layout: &mut Option<QtileCmdData>) -> Result<bool, u8> {
+    let tmp_layout = match layout {
+        Some(lo) => lo,
+        None => return Ok(false),
+    };
+
+    let arguments: Vec<&str> = args.split_ascii_whitespace().collect();
+    let location = if arguments.len() == 1 {
+        arguments[0]
+    } else {
+        return Err(7);
+    };
+
+    let clearing = tmp_layout.should_clear(location);
+    Ok(clearing)
+}
+
 pub fn auto_move(args: &str, layout: &mut Option<QtileCmdData>) -> Result<Option<String>, u8> {
     // println!("auto-move");
     // println!("args => {}", args);
     // println!("layout => {:?}", layout);
+    let tmp_layout = match layout {
+        Some(lo) => lo,
+        None => {
+            println!("[DEBUG] no layout provided.");
+            return Ok(None)
+        },
+    };
     let arguments = args.splitn(2," ").collect::<Vec<&str>>();
     if arguments.len() != 2 {
         println!("[ERROR] wrong number of arguments, {}", arguments.len());
@@ -103,24 +139,16 @@ pub fn auto_move(args: &str, layout: &mut Option<QtileCmdData>) -> Result<Option
     let wm_classes = (arguments[0], arguments[1]);
     println!("[DEBUG] wm_classes: {:?}", wm_classes);
 
-    let location = match layout {
-        Some(layout) => {
-            match layout.get_location(wm_classes) {
-                Some(location) => location,
-                None => {
-                    println!("[DEBUG] wm_class not in layout.");
-                    return Ok(None)
-                }
-            }
-        },
+    let location = match tmp_layout.get_location(wm_classes) {
+        Some(location) => location,
         None => {
-            println!("[DEBUG] no layout provided.");
+            println!("[DEBUG] wm_class not in layout.");
             return Ok(None)
         }
     };
 
     println!("[DEBUG] moving window with class: {:?} to location: {location}, will be handled by qtile.", wm_classes);
-    Ok(Some(format!("{}{location}", 0 as char)))
+    Ok(Some(location))
 }
 
 /// open-at
@@ -172,7 +200,7 @@ pub fn make_cmd_data(fname: &str) -> Result<QtileCmdData, u8> {
             match &program.wm_class {
                 Some(class) => {
                     payload_struc.add_rules(&class, &desktop.desktop);
-                    payload_struc.add_queue(&program.name);
+                    payload_struc.add_queue(&program.name, &program.args);
                 }
                 None => println!("no wm_class defined for {} in the layout file. could not setup or launch.", program.name),
             }
@@ -200,7 +228,7 @@ pub async fn load_layout(spath: &str, args: &str) -> u8 {
     // thread::sleep(time::Duration::from_millis(20));
     let clear_res = qtile_send("clear".to_string(), spath);
 
-    sleep(Duration::from_millis(500)).await;
+    sleep(Duration::from_millis(500)).await;  // TODO: try commenting this out and/or lowering the time.
     
     if load_res == 0 {
         for program in programs {

@@ -10,6 +10,7 @@ pub struct Program {
     pub name: String,
     pub state: Option<String>,
     pub wm_class: Option<String>,
+    pub args: Option<Vec<String>>,
     pub delay: Option<u8>,
 }
 
