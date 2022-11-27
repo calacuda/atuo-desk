@@ -1,3 +1,4 @@
+#![deny(clippy::all)]
 use std::fs::read_to_string;
 use std::path::Path;
 use serde_yaml;

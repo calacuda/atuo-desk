@@ -1,3 +1,4 @@
+#![deny(clippy::all)]
 // use std::{thread, time};
 use std::collections::HashMap;
 // use std::collections::HashSet;

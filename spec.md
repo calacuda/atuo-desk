@@ -30,6 +30,7 @@ once a command is sent to the server it will reply with an exit code (see below)
 |inc-bl | percent | increases the screen backlight brightness by percent|
 |dec-bl | percent | decreases the screen backlight brightness by percent|
 |load-layout | layout | is a .layout file in ~/.config/desktop-automater/layouts/ dir, it contains a new line separated list of commands to be run. (under active development))
+|add-hook | `event`, `command` | adds a shell executable (`command`) to be run when the `event` happens. |
 
 ## bspwm commands:
 |command | arguments | description |
@@ -58,10 +59,10 @@ once a command is sent to the server it will reply with an exit code (see below)
 |5    |  error connecting to wm socket
 |6    |  wm error
 |7    |  too few/many arguments
+|8    |  internal communication problem
+|9    |  hook adding error
+|10   |  hook rm error
 
 ---
 # design note:
 ---
-## plug-in system:
-
-add work spaces and features

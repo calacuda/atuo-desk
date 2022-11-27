@@ -1,8 +1,5 @@
+#![deny(clippy::all)]
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
-use configparser::ini::Ini;
-use shellexpand;
-use std::collections::HashMap;
-use std::error::Error;
 use std::io::Read;
 use std::io::Write;
 use std::net::Shutdown;
@@ -11,17 +8,22 @@ use std::path::Path;
 use std::process::exit;
 use std::str;
 
-const CONFIG_ADR: &str = "~/.config/desktop-automater/config.ini";
-
 fn main() {
     let args = get_args();
     let subargs = args.subcommand().unwrap();
-    let server_soc: String = get_server_soc();
+    let configs = match config::get_configs() {
+        Ok(configs) => configs,
+        Err(e) => {
+            println!("{}", e);
+            return;
+        }
+    };
+    let server_soc: String = configs.server.listen_socket;
 
     match subargs.0 {
         "launch" => handle_launch(subargs.1.to_owned(), server_soc),
         "layout" => handle_layout(subargs.1.to_owned(), server_soc),
-        _ => panic!("clap missed that argument! please submit a bug report."),
+        _ => panic!("argument not yet implemented!"),
     }
 }
 
@@ -70,12 +72,12 @@ fn send_data(data: String, server_soc: String) -> Vec<u8> {
 
     if ec > 0 {
         print!("{}", 7 as char);
-        print!("[ERROR] The server reported an error (check 'systemctl status' for message). error code: ");
+        println!("[ERROR] The server reported an error (check 'systemctl status' for message). error code: {ec}");
     } else {
-        print!("[SUCCESS] responce: ")
+        println!("[SUCCESS] responce: ")
     }
 
-    match str::from_utf8(&response) {
+    match str::from_utf8(response) {
         Ok(text) => println!("{}", text),
         Err(_e) => {
             println!("responce had invalid UTF-8, could not parse.");
@@ -84,7 +86,7 @@ fn send_data(data: String, server_soc: String) -> Vec<u8> {
         }
     };
 
-    return response_bytes;
+    response_bytes
 }
 
 fn handle_layout(args: ArgMatches, server_soc: String) {
@@ -116,64 +118,9 @@ fn handle_launch(args: ArgMatches, server_soc: String) {
     };
 }
 
-fn get_servers(config_file: &str) -> HashMap<String, Option<String>> {
-    let configs: HashMap<String, HashMap<String, Option<String>>> = match load_config(config_file) {
-        Ok(data) => data,
-        Err(e) => {
-            println!("got error : {:?}", e);
-            exit(1);
-        }
-    };
-
-    return match configs.get("server") {
-        Some(data) => data.to_owned(),
-        None => {
-            println!("config file has no server configurations. exiting");
-            exit(1);
-        }
-    };
-}
-
-fn get_server_soc() -> String {
-    return match get_servers(CONFIG_ADR).get("listen-socket") {
-        Some(servers) => match servers.to_owned() {
-            Some(socket_adr) => socket_adr,
-            None => {
-                println!("programming socket adress is absent from the config file,");
-                println!("using the default \"/tmp/desktop-automater\"");
-                println!("to fix this add the following line to the config:");
-                println!("[SERVER]");
-                println!("prog-so = /tmp/desktop-automater");
-                "/tmp/desktop-automater".to_owned()
-            }
-        },
-        None => {
-            println!("Can't locate default config file using the default programming");
-            println!("socket location \"/tmp/desktop-automater\"");
-            println!(
-                "to fix this make a config file at \"{}\" and add the following",
-                CONFIG_ADR
-            );
-            println!("lines to the file:");
-            println!("[SERVER]");
-            println!("wm-socket = /tmp/bspwm_0_0-socket");
-            println!("listen-socket = /tmp/desktop-automater");
-            "/tmp/desktop-automater".to_owned()
-        }
-    };
-}
-
-fn load_config(
-    config_file: &str,
-) -> Result<HashMap<String, HashMap<String, Option<String>>>, Box<dyn Error>> {
-    let mut config = Ini::new();
-    let map = config.load(shellexpand::tilde(config_file).to_string())?;
-    return Ok(map);
-}
-
 fn get_args() -> ArgMatches {
-    return App::new("auto-desk")
-        .version("0.4.0")
+    App::new("auto-desk")
+        .version("0.5.0")
         .author("Calacuda. <https://github.com/calacuda>")
         .about("used to control a linux desktop running BSPWM.")
         .setting(AppSettings::SubcommandRequiredElseHelp)
@@ -210,7 +157,7 @@ fn get_args() -> ArgMatches {
                         .required(true),
                 ),
         )
-        .get_matches();
+        .get_matches()
 }
 
 // fn find_layout(fname: String) -> String {

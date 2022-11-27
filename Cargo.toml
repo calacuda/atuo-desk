@@ -1,6 +1,6 @@
 [package]
 name = "auto-desk"
-version = "0.4.1"
+version = "0.5.0"
 edition = "2021"
 
 [[bin]]
@@ -17,22 +17,31 @@ members = [
     "workspaces/qtile",
     "workspaces/common",
     "workspaces/wm-lib",
+    "workspaces/hooks",
+    "workspaces/events",
+    "workspaces/config",
 ]
 
 [features]
-default = ["common"]
+default = ["common", "hooks"]
 bspwm = ["dep:bspwm"]
 qtile = ["dep:qtile", "dep:wm_lib"]
 common = ["systemctl", "media", "dep:common"]
 systemctl = []
 media = []
+hooks = ["dep:hooks", "dep:events"]
 
 [dependencies]
 clap = "3.2.8"
 shellexpand = "2.1.0"
-configparser = "3.0.0"
+# configparser = "3.0.0"
+config = { path = "workspaces/config"}
 common = { path = "workspaces/common", optional=true}
 qtile = { path = "workspaces/qtile", optional=true }
 bspwm = { path = "workspaces/bspwm", optional=true }
 wm_lib = { path = "workspaces/wm-lib", optional=true }
-tokio = {version = "1.22", features = ["net", "rt-multi-thread", "macros", "io-util"]}
+hooks = { path = "workspaces/hooks", optional=true }
+events = { path = "workspaces/events", optional=true }
+tokio = {version = "1.22", features = ["net", "rt-multi-thread", "macros", "io-util", "sync"]}
+# online = { version = "4.0.0",  default-features = false, features = ["tokio-runtime"], optional=true}
+futures = {version = "0.3.25", default-features = false, features = ["async-await"]}

@@ -1,6 +1,3 @@
-// use std::collections::HashMap;
-// use std::error::Error;
-// use std::io::prelude::*;
 use rdev::{simulate, EventType, Key, SimulateError};
 use std::process::{Command, Stdio};
 use std::{thread, time};
@@ -27,7 +24,7 @@ pub fn open_program(program: &str) -> u8 {
             .spawn()
     };
     println!("[LOG] ran '{}'", program);
-    return match process {
+    match process {
         Ok(_) => {
             println!("[LOG] program '{}' launched", program);
             0
@@ -36,7 +33,7 @@ pub fn open_program(program: &str) -> u8 {
             println!("[ERROR] program '{}' could not be launched: '{}'", program, e);
             4
         }
-    };
+    }
 }
 
 fn send_key_stroke(event_type: &EventType) -> u8 {
@@ -60,18 +57,18 @@ fn send_key_stroke(event_type: &EventType) -> u8 {
     };
     // Let ths OS catchup (at least MacOS)
     thread::sleep(delay);
-    return res;
+    res
 }
 
 pub fn screen_shot() -> u8 {
     let press = send_key_stroke(&EventType::KeyPress(Key::PrintScreen));
     let release = send_key_stroke(&EventType::KeyRelease(Key::PrintScreen));
 
-    return if press > 0 {
+    if press > 0 {
         press
     } else if release > 0 {
         release
     } else {
         0
-    };
+    }
 }

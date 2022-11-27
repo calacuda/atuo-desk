@@ -1,0 +1,24 @@
+# desktop-automater config file
+
+[server]
+listen_socket = "/tmp/desktop-automater"
+wm_socket = "/tmp/QTILE_SOC"
+
+[hooks]
+exec_ignore = [
+			"firefox", 
+			"brave", 
+			"chromium",
+			"chromium-browser",
+			"kdeconnectd",
+			"desktop-automat",
+			"desktop-automater",
+		 ]
+
+[[hooks.hooks]]
+event = "wifi-network-change"
+hook = "~/.local/bin/ensure-home-vpn.py"
+
+[[hooks.hooks]]
+event = "port-status-change"
+hook = "~/.local/bin/port-switchboard.py"
