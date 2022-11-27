@@ -11,6 +11,7 @@ use common::open_program;
 use wm_lib;
 use wm_lib::{Program, DesktopLayout};
 use freedesktop_entry_parser::parse_entry;
+use config::OptGenRes;
 
 fn remove_present(progs: &Vec<Program>, execs: &mut Vec<String>) -> Vec<Program> {
     let mut programs = Vec::new();

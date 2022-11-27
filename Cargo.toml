@@ -24,17 +24,16 @@ members = [
 
 [features]
 default = ["common", "hooks", "qtile"]
-bspwm = ["dep:bspwm"]
+bspwm = ["dep:bspwm", "dep:wm_lib"]
 qtile = ["dep:qtile", "dep:wm_lib"]
 common = ["systemctl", "media", "dep:common"]
-systemctl = ["common/systemctl"]
-media = ["common/media"]
+systemctl = ["common/systemctl", "dep:common"]
+media = ["common/media", "dep:common"]
 hooks = ["dep:hooks", "dep:events", "tokio/sync"]
 
 [dependencies]
 clap = "3.2.8"
 shellexpand = "2.1.0"
-# configparser = "3.0.0"
 config = { path = "workspaces/config"}
 common = { path = "workspaces/common", optional=true}
 qtile = { path = "workspaces/qtile", optional=true }
@@ -42,6 +41,5 @@ bspwm = { path = "workspaces/bspwm", optional=true }
 wm_lib = { path = "workspaces/wm-lib", optional=true }
 hooks = { path = "workspaces/hooks", optional=true }
 events = { path = "workspaces/events", optional=true }
-tokio = {version = "1.22", default-features = false, features = ["net", "rt-multi-thread", "macros", "io-util"]}
-# online = { version = "4.0.0",  default-features = false, features = ["tokio-runtime"], optional=true}
+tokio = {version = "1.22", default-features = false, features = ["io-util"]}
 futures = {version = "0.3.25", default-features = false, features = ["async-await"]}
