@@ -92,8 +92,8 @@ pub async fn wifi_change() -> Context {
         let tmp_ssid = get_name();
         if tmp_ssid != ssid {
             let mut context = HashMap::new();
-            context.insert("from".to_string(), ssid);
-            context.insert("to".to_string(), tmp_ssid);
+            context.insert("network_was".to_string(), ssid);
+            context.insert("network_is".to_string(), tmp_ssid);
             return context;
         } else {
             ssid = tmp_ssid;
