@@ -49,6 +49,8 @@ struct Port {
 // }
 
 pub async fn network_connection() -> Context {
+    println!("net connected");
+
     let connected = check(None).await.is_ok();
     let mut context = HashMap::new();
     loop {
@@ -83,6 +85,7 @@ fn get_name() -> String {
 }
 
 pub async fn wifi_change() -> Context {
+    println!("wifi change");
     let mut ssid = get_name();
     loop {
         sleep(Duration::from_millis(RESOLUTION)).await;
@@ -126,6 +129,8 @@ async fn get_bckl_perc(backlight_dir: &fs::DirEntry) -> Result<f64, std::io::Err
 } 
 
 pub async fn backlight_change() -> Context {
+    println!("backlight change");
+
     let backlight = match tokio::fs::read_dir("/sys/class/backlight/").await {
         Ok(mut dirs) => {
             match dirs.next_entry().await {
@@ -155,7 +160,7 @@ pub async fn backlight_change() -> Context {
     }
 }
 
-pub async fn make_usb_context(new_devs: &[UsbDevice]) -> Context {
+async fn make_usb_context(new_devs: &[UsbDevice]) -> Context {
     let mut new_dev_names = Vec::new();
     let mut new_dev_id = Vec::new();
     let mut context = HashMap::new();
@@ -180,6 +185,7 @@ pub async fn make_usb_context(new_devs: &[UsbDevice]) -> Context {
 }
 
 pub async fn new_usb() -> Context {
+    println!("new usb");
     let mut interval = time::interval(Duration::from_millis(RESOLUTION));
     let devices = usb_enumeration::enumerate(None, None).into_iter().collect::<HashSet<UsbDevice>>();
 
@@ -255,6 +261,7 @@ async fn make_adr(obj_path: &str) -> String {
 }
 
 pub async fn blt_dev_conn(connected: &mut HashSet<String>) -> Context {
+    println!("bluetooth dev conn");
     let mut default_context = HashMap::new();
     default_context.insert("event".to_string(), "N/A".to_string());
     default_context.insert("device_adr".to_string(), "N/A".to_string());
@@ -371,6 +378,8 @@ async fn make_port_contexts(closed: HashSet<Port>, opened: HashSet<Port>) -> Vec
 }
 
 pub async fn port_change(stop_execs: &HashSet<String>) -> Vec<Context> {
+    println!("port state change");
+
     let mut open_ports = get_tcp_ports(stop_execs).await;
     let mut interval = time::interval(Duration::from_millis(RESOLUTION / 8));
 
