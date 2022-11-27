@@ -1,22 +1,14 @@
-#![deny(clippy::all)]
-// use std::{thread, time};
 use std::collections::HashMap;
-// use std::collections::HashSet;
 use std::io::Read;
 use std::io::Write;
 use std::net::Shutdown;
 use std::os::unix::net::UnixStream;
 use wm_lib;
-// use wm_lib::DesktopLayout;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use tokio::time::{sleep, Duration};
-// use std::env;
-// use std::process::Output;
-// use std::process::Command;
-// use pyo3::prelude::*;
-// use pyo3::py_run;
 use common;
+use config::OptGenRes;
 
 const NULL: char = 0 as char;
 
@@ -26,6 +18,13 @@ type Desktops = HashMap<Desktop, bool>;
 type Exe = String;
 type Programs = Vec<Exe>;
 type Rules = HashMap<WMClass, Vec<Desktop>>;
+
+
+pub enum QtileAPI {
+    Layout(QtileCmdData),
+    Message(String),
+    Res(u8),
+}
 
 // #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -214,16 +213,16 @@ pub fn make_cmd_data(fname: &str) -> Result<QtileCmdData, u8> {
 
 /// load-layout
 pub async fn load_layout(spath: &str, args: &str) -> u8 {
-    println!("load_layout");
-    println!("spath => {}", spath);
-    println!("args => {}", args);
+    // println!("load_layout");
+    // println!("spath => {}", spath);
+    // println!("args => {}", args);
 
     let (payload, programs) = match make_payload(args) {
         Ok(payload) => payload,
         Err(ec) => return ec, 
     };
 
-    println!("payload => {}", payload);
+    // println!("payload => {}", payload);
     
     let load_res = qtile_send(payload, spath);
     // thread::sleep(time::Duration::from_millis(20));
@@ -304,4 +303,43 @@ fn qtile_send(payload: String, spath: &str) -> u8 {
         println!("[ERROR] The qtile python api didn't respond. It most likely crashed. Pls reload it and try again.");
         6
     }    
+}
+
+pub async fn qtile_switch(cmd: &str, args: &str, spath: &str) -> OptGenRes {
+    match cmd {
+        // "move-to" => Some(move_to(spath, args)),
+        // "close-focused" => Some(close_focused(spath)),
+        "open-at" | "open-on" => Some((open_on_desktop(spath, args), None)),
+        "focus-on" => Some((focus_on(spath, args), None)),
+        _ => None,
+    }
+}
+
+pub async fn qtile_api(
+    cmd: &str, 
+    args: &str, 
+    layout: &mut Option<QtileCmdData>
+) -> Option<QtileAPI> {
+    match cmd {
+        "load-layout" => {
+            match make_cmd_data(args) {
+                Ok(layout) => Some(QtileAPI::Layout(layout)),
+                Err(ec) => Some(QtileAPI::Res(ec)),
+            }
+        }
+        "auto-move" => Some(
+            match auto_move(args, layout) {
+                Ok(Some(loc)) => QtileAPI::Message(loc),
+                Ok(None) => QtileAPI::Res(0), 
+                Err(ec) => QtileAPI::Res(ec),
+            }
+        ),
+        "should-clear" => Some(
+            match should_clear(args, layout) {
+                Ok(to_clear_or_not_to_clear) => QtileAPI::Message(if to_clear_or_not_to_clear {"true"} else {"false"}.to_string()), // that is the question
+                Err(ec) => QtileAPI::Res(ec),
+            }
+        ),
+        _ => None,
+    }
 }

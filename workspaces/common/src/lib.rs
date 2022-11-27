@@ -1,11 +1,12 @@
 use rdev::{simulate, EventType, Key, SimulateError};
 use std::process::{Command, Stdio};
 use std::{thread, time};
+use config::OptGenRes;
 
-pub mod backlight;
-pub mod media;
-pub mod power;
-pub mod xrandr;
+mod backlight;
+mod media;
+mod power;
+mod xrandr;
 
 pub fn open_program(program: &str) -> u8 {
     println!("[LOG] running: {}", program);
@@ -60,7 +61,7 @@ fn send_key_stroke(event_type: &EventType) -> u8 {
     res
 }
 
-pub fn screen_shot() -> u8 {
+fn screen_shot() -> u8 {
     let press = send_key_stroke(&EventType::KeyPress(Key::PrintScreen));
     let release = send_key_stroke(&EventType::KeyRelease(Key::PrintScreen));
 
@@ -70,5 +71,45 @@ pub fn screen_shot() -> u8 {
         release
     } else {
         0
+    }
+}
+
+pub async fn common_switch(cmd: &str, args: &str) -> OptGenRes{
+    match cmd {
+        "open-here" => Some((open_program(args), None)),
+        "screen-shot" => Some((screen_shot(), None)),
+        "inc-bl" => Some((backlight::inc_bright(args), None)),
+        "dec-bl" => Some((backlight::dec_bright(args), None)),
+        "add-monitor" => Some((xrandr::add_monitor(args), None)),
+        _ => None,
+    }
+}
+
+#[cfg(feature = "systemctl")]
+pub async fn sysctl_switch(cmd: &str) -> OptGenRes {
+    match cmd {
+        "poweroff" => Some((power::power_off(), None)),
+        "hibernate" => Some((power::hibernate(), None)),
+        "reboot" => Some((power::reboot(), None)),
+        "sleep" | "suspend" => Some((power::sleep(), None)),
+        "lock" => Some((power::lock(), None)),
+        "logout" => Some((power::logout(), None)),
+        _ => None,
+    }
+}
+
+#[cfg(feature = "media")]
+pub async fn media_switch(cmd: &str, args: &str) -> OptGenRes {
+    match cmd {
+        "vol-up" => Some((media::volume_up(args), None)),
+        "vol-down" => Some((media::volume_down(args), None)),
+        "mute" => Some((media::mute(), None)),
+        "play/pause" => Some((media::play_pause(), None)),
+        "play-track" => Some((media::play(), None)),
+        "pause-track" => Some((media::pause(), None)),
+        "stop-track" => Some((media::stop(), None)),
+        "next-track" => Some((media::next_track(), None)),
+        "last-track" => Some((media::last_track(), None)),
+        _ => None,
     }
 }

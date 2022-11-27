@@ -371,14 +371,7 @@ async fn make_port_contexts(closed: HashSet<Port>, opened: HashSet<Port>) -> Vec
 }
 
 pub async fn port_change(stop_execs: &HashSet<String>) -> Vec<Context> {
-    println!("entering port_change");
-    
     let mut open_ports = get_tcp_ports(stop_execs).await;
-    // for port in &open_ports {
-    //     println!("{:?}\n=======", port);
-    // }
-    // println!("*********");
-
     let mut interval = time::interval(Duration::from_millis(RESOLUTION / 8));
 
     loop {
@@ -386,8 +379,6 @@ pub async fn port_change(stop_execs: &HashSet<String>) -> Vec<Context> {
         let new_open_ports = get_tcp_ports(stop_execs).await;
 
         if open_ports != new_open_ports {
-            // println!("open_ports => {:?}", open_ports);
-            // println!("new_open_ports => {:?}", new_open_ports);
             let (closed, opened) = get_changed(open_ports, new_open_ports).await;
             return make_port_contexts(closed, opened).await;
         } else {

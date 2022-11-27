@@ -26,6 +26,9 @@ pub struct Hook {
     pub exec: String,
 }
 
+pub type GenericRes = (u8, Option<String>);
+pub type OptGenRes = Option<GenericRes>;
+
 const CONFIG_FILE: &str = "~/.config/desktop-automater/config.toml";
 
 pub fn get_configs() -> Result<Config, std::io::Error> {

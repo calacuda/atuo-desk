@@ -1,11 +1,9 @@
 use tokio::sync::mpsc::{Sender, Receiver};
-// use tokio::sync::mpsc;
-// use tokio::task;
 use tokio::process::Command;
 use std::collections::{HashMap, HashSet};
-// use futures::{executor, future, FutureExt};
 use futures_util::future::join_all;
 use config::Hook;
+use config::OptGenRes;
 
 pub type HookID = u16;
 pub type Hooks = HashMap<HookID, Hook>;
@@ -81,30 +79,8 @@ pub struct HookData {
     pub db: HookDB,
 }
 
-// fn add_hook_parse(message: &str) -> Result<(String, String), u8> {
-//     match message.split_once(" ") {
-//         Some(data) => Ok((data.0.to_string(), data.1.to_string())),
-//         None => Err(7)
-//     }
-// }
- 
-// /// adds a hook by sending a mpsc message to start hooks.
-// pub async fn add_hook(args: &str, _tx: &Sender<Hook>) -> u8 {
-//     let (event, exec) = match add_hook_parse(args) {
-//         Ok(data) => data,
-//         Err(ec) => return ec,
-//     };
-
-//     let payload = format!("add {event}, {exec}");
-
-//     match control_tx.send(payload).await {
-//         Ok(_) => 0,
-//         Err(_) => 8,
-//     }
-// }
-
 /// sends the new hook db to the event loop.
-pub async fn update_hook_db(hook_db: &HookDB, event_loop_tx: &Sender<HookDB>) -> u8 {
+async fn update_hook_db(hook_db: &HookDB, event_loop_tx: &Sender<HookDB>) -> u8 {
     match event_loop_tx.send(hook_db.clone()).await {
         Ok(_) => 0,
         Err(_) => 8,
@@ -121,7 +97,7 @@ async fn make_db_from_conf(hooks: Vec<Hook>, db: &mut HookDB) {
 }
 
 /// adds a hook by sending a mpsc message to start hooks.?
-pub async fn add_hook(args: &str, hook_data: &mut HookData) -> u8 {
+async fn add_hook(args: &str, hook_data: &mut HookData) -> u8 {
     let (event, exec) = match args.split_once(' ') {
         Some((ev, ex)) => (ev, ex),
         None => return 7,
@@ -136,7 +112,7 @@ pub async fn add_hook(args: &str, hook_data: &mut HookData) -> u8 {
 
 
 /// removes a hook by sending a mpsc message to start hooks.
-pub async fn rm_hook(_args: &str, _hook_db: &mut HookDB) -> u8 {
+async fn rm_hook(_args: &str, _hook_db: &mut HookDB) -> u8 {
     // TODO: Implement
     0
 }
@@ -144,7 +120,7 @@ pub async fn rm_hook(_args: &str, _hook_db: &mut HookDB) -> u8 {
 /// used to get a list of hooks from start hooks.
 /// returns a string of a nice table representing all hooks, 
 /// what their hooked to and their ID.
-pub async fn get_hook(_hook_db: &HookDB) -> String {
+async fn get_hook(_hook_db: &HookDB) -> String {
     // TODO: Implement
     String::new()
 }
@@ -186,21 +162,10 @@ async fn get_hooks(event_hooks: &[HookID], all_hooks: &Hooks) -> Vec<Hook> {
 /// starts asynchronously checking for events and then triggers hooks.
 pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: HashSet<String>, config_hooks: Vec<Hook>) {
     // define the hook storage struct
-    // let all_hooks: Hooks = HashMap::new();
     let mut hook_db = HookDB::new();
-    // this stops the bluetooth new device event from spamming that a device is connected.
-    // is it hacky, yes. does it work? idk yet.
+    // stops bluetooth from registering devices twice.
     let mut conn_bt_dev = HashSet::new();
-    // TODO: make an exec black list in the config file to replace below.
-    // let mut stop_execs = HashSet::new();
-    // stop_execs.insert("firefox".to_string());
-    // stop_execs.insert("brave".to_string());
-    // stop_execs.insert("chromium".to_string());
-    // stop_execs.insert("chromium-browser".to_string());
-    // stop_execs.insert("kdeconnectd".to_string());
-    // stop_execs.insert("desktop-automat".to_string());
     
-    // TODO: load in hooks from a config file.
     make_db_from_conf(config_hooks, &mut hook_db).await;
     // TODO: use the same boxed future technique from the switch board function from server/main.rs then use Join_all!()
     loop {
@@ -230,5 +195,22 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: Has
                 let _ = join_all(hooks).await;
             }
         }
+    }
+}
+
+pub async fn hooks_switch( 
+    cmd: &str, 
+    args: &str, 
+    maybe_hook_data: &mut Option<HookData>,
+) -> OptGenRes {
+    match (cmd, maybe_hook_data, ) { 
+        ( "add-hook", Some(hook_data) )=> Some((add_hook(args, hook_data).await, None)),
+        ( "rm-hook", Some(hook_data) )=> Some((rm_hook(args, &mut hook_data.db).await, None)),
+        ( "ls-hook" | "list-hook", Some(hook_data) )=> {
+            // TODO: this chould be a table, just like sql output. Thats why its called table.
+            let table = get_hook(&hook_data.db).await;
+            Some((0, Some(table)))
+        },
+        _ => None,
     }
 }

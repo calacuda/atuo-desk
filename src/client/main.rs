@@ -71,7 +71,7 @@ fn send_data(data: String, server_soc: String) -> Vec<u8> {
     let response = &response_bytes[1..];
 
     if ec > 0 {
-        print!("{}", 7 as char);
+        // print!("{}", 7 as char);
         println!("[ERROR] The server reported an error (check 'systemctl status' for message). error code: {ec}");
     } else {
         println!("[SUCCESS] responce: ")

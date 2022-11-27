@@ -39,7 +39,7 @@ fn get_exec(program: &Program) -> String {
     };
 }
 
-pub fn get_progs(desktop_name: &str, programs: &Vec<Program>, spath: &str) -> Vec<Program> {
+fn get_progs(desktop_name: &str, programs: &Vec<Program>, spath: &str) -> Vec<Program> {
     let res = query(spath, &format!("query -N -d {}", desktop_name));
     let window_ids = res.trim().split('\n');
     // println!("window_ids :  {:?}", window_ids);
@@ -74,7 +74,7 @@ pub fn get_progs(desktop_name: &str, programs: &Vec<Program>, spath: &str) -> Ve
     return progs;
 }
 
-pub fn load_layout(spath: &str, args: &str) -> u8 {
+fn load_layout(spath: &str, args: &str) -> u8 {
     // loads a layout file and configures the system apropiately.
     
     let layout_yaml = match wm_lib::get_layout(args) {
@@ -101,7 +101,7 @@ pub fn load_layout(spath: &str, args: &str) -> u8 {
     return error_code;
 }
 
-pub fn load_from_yaml(layouts: Vec<DesktopLayout>, spath: &str) -> u8 {
+fn load_from_yaml(layouts: Vec<DesktopLayout>, spath: &str) -> u8 {
     let mut async_layouts = Vec::new();
     let mut sync_layouts = Vec::new();
 
@@ -142,7 +142,7 @@ pub fn load_from_yaml(layouts: Vec<DesktopLayout>, spath: &str) -> u8 {
     return 0;
 }
 
-pub fn init_layouts(spath: &str, layouts: &Vec<DesktopLayout>) -> Vec<u8> {
+fn init_layouts(spath: &str, layouts: &Vec<DesktopLayout>) -> Vec<u8> {
     let mut res_codes = Vec::new();
 
     for layout in layouts {
@@ -152,14 +152,14 @@ pub fn init_layouts(spath: &str, layouts: &Vec<DesktopLayout>) -> Vec<u8> {
     res_codes
 }
 
-pub fn init_layout(spath: &str, layout: &DesktopLayout) -> Vec<u8> {
+fn init_layout(spath: &str, layout: &DesktopLayout) -> Vec<u8> {
     let desktop_num = format!("{}", layout.desktop);
     let programs = layout.programs.clone();
     let tmp_spath = spath.to_string();
     set_up_desktop(&desktop_num, &programs, &tmp_spath)
 }
 
-pub fn set_up_desktop(desktop_name: &str, programs: &Vec<Program>, spath: &str) -> Vec<u8> {
+fn set_up_desktop(desktop_name: &str, programs: &Vec<Program>, spath: &str) -> Vec<u8> {
     let progs = get_progs(desktop_name, programs, spath);
     let mut ecs = Vec::new();
 
@@ -178,7 +178,7 @@ pub fn set_up_desktop(desktop_name: &str, programs: &Vec<Program>, spath: &str) 
     return ecs;
 }
 
-pub fn run_exec(exec: &String, desktop_name: &str, program: &Program, spath: &str) -> u8 {
+fn run_exec(exec: &String, desktop_name: &str, program: &Program, spath: &str) -> u8 {
     let rules = [
         format!(
             "{}:{} desktop={}",
@@ -234,7 +234,7 @@ pub fn run_exec(exec: &String, desktop_name: &str, program: &Program, spath: &st
     return 0;
 }
 
-pub fn query(spath: &str, message: &str) -> String {
+fn query(spath: &str, message: &str) -> String {
     match UnixStream::connect(spath) {
         Ok(mut stream) => {
             match stream.write_all(&make_api(message)) {
@@ -260,7 +260,7 @@ pub fn query(spath: &str, message: &str) -> String {
     }
 }
 
-pub fn open_on_desktop(spath: &str, raw_args: &str) -> u8 {
+fn open_on_desktop(spath: &str, raw_args: &str) -> u8 {
     //get args
     let args = get_n_args(2, raw_args);
     if args.last() == Some(&String::new()) {
@@ -329,22 +329,15 @@ fn get_n_args(n: i32, arg_str: &str) -> Vec<String> {
     return args;
 }
 
-// fn get_one_arg(args: &str) -> (&str, &str) {
-//     return match args.split_once(" ") {
-//         Some(cmd_args) => cmd_args.to_owned(),
-//         None => (args, ""), //panic!("This function take more then one input!"),
-//     };
-// }
-
-pub fn focus_on(spath: &str, destination: &str) -> u8 {
+fn focus_on(spath: &str, destination: &str) -> u8 {
     return send(spath, &format!("desktop -f {}", destination));
 }
 
-pub fn move_to(spath: &str, destination: &str) -> u8 {
+fn move_to(spath: &str, destination: &str) -> u8 {
     return send(spath, &format!("node -d {}", destination));
 }
 
-pub fn close_focused(spath: &str) -> u8 {
+fn close_focused(spath: &str) -> u8 {
     return send(spath, "node -c");
 }
 
@@ -355,7 +348,7 @@ fn make_api(message: &str) -> Vec<u8> {
     return res;
 }
 
-pub fn send(spath: &str, message: &str) -> u8 {
+fn send(spath: &str, message: &str) -> u8 {
     // println!("message :  {}", message);
     match UnixStream::connect(spath) {
         Ok(mut stream) => {
@@ -386,5 +379,16 @@ pub fn send(spath: &str, message: &str) -> u8 {
             );
             return 5;
         }
+    }
+}
+
+pub async fn bspwm_switch(cmd: &str, args: &str, spath: &str) -> OptGenRes {
+    match cmd {
+        "move-to" => Some((move_to(spath, args), None)),
+        "close-focused" => Some((close_focused(spath), None)),
+        "open-at" => Some((open_on_desktop(spath, args), None)),
+        "focus-on" => Some((focus_on(spath, args), None)),
+        "load-layout" => Some((load_layout(spath, args), None)),
+        _ => None,
     }
 }
