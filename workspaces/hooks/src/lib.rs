@@ -1,7 +1,6 @@
 use tokio::sync::mpsc::{Sender, Receiver};
 use tokio::process::Command;
 use std::collections::{HashMap, HashSet};
-use futures_util::future::{join_all, BoxFuture};
 use config::Hook;
 use config::OptGenRes;
 
@@ -189,119 +188,23 @@ pub async fn hooks_switch(
     }
 }
 
-// /// starts asynchronously checking for events and then triggers hooks.
-// pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: HashSet<String>, config_hooks: Vec<Hook>) {
-//     // define the hook storage struct
-//     let mut hook_db = HookDB::new();
-//     // stops bluetooth from registering devices twice.
-//     let mut conn_bt_dev = HashSet::new();
-    
-//     make_db_from_conf(config_hooks, &mut hook_db).await;
-//     // TODO: use the same boxed future technique from the switch board function from server/main.rs then use Join_all!()
-//     loop {
-//         // async check for events and messages via thread based message passing
-//         tokio::select! {
-//             message = hook_db_rx.recv() => {
-//                 match message {
-//                     Some(tmp_hook_db) => hook_db = tmp_hook_db,
-//                     None => {
-//                         println!("[ERROR] failed to receive the modified hook database.");
-//                     }
-//                 }
-//             },
-//             context = events::wifi_change() => run_hooks(context, &hook_db.wifi_net, &hook_db.hooks).await,
-//             context = events::network_connection() => run_hooks(context, &hook_db.net_con, &hook_db.hooks).await,
-//             // context = events::file_exists() => run_hooks(context, &hook_db.test_file_exists, &hook_db.hooks).await,
-//             context = events::backlight_change() => run_hooks(context, &hook_db.backlight, &hook_db.hooks).await,
-//             context = events::new_usb() => run_hooks(context, &hook_db.usb_dev, &hook_db.hooks).await,
-//             // context = events::discovered_blt() => run_hooks(context, &hook_db.bluetooth_dev, &hook_db.hooks).await,
-//             context = events::blt_dev_conn(&mut conn_bt_dev) => run_hooks(context, &hook_db.bluetooth_conn, &hook_db.hooks).await,
-//             contexts = events::port_change(&stop_execs) => {
-//                 let mut hooks = Vec::new(); 
-//                 for context in contexts {
-//                     // println!("{:?}", context);
-//                     hooks.push(run_hooks(context, &hook_db.ports_change, &hook_db.hooks));
-//                 }
-//                 let _ = join_all(hooks).await;
-//             }
-//         }
-//     }
-// }
-
 /// starts asynchronously checking for events and then triggers hooks.
 pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: HashSet<String>, config_hooks: Vec<Hook>) {
     // define the hook storage struct
     let mut hook_db = HookDB::new();
     // stops bluetooth from registering devices twice.
     let mut conn_bt_dev = HashSet::new();
-    
     make_db_from_conf(config_hooks, &mut hook_db).await;
-    // TODO: use the same boxed future technique from the switch board function from server/main.rs then use Join_all!()
+
+    let mut ports = Box::pin(events::port_change(&stop_execs));
+    let mut bluetooth_dev = Box::pin(events::blt_dev_conn(conn_bt_dev.clone()));
+    let mut new_usb = Box::pin(events::new_usb());
+    let mut backlight = Box::pin(events::backlight_change());
+    let mut net_connected = Box::pin(events::network_connection());
+    let mut network_change = Box::pin(events::wifi_change());
+    
     loop {
-        println!("hook database => {:?}", hook_db);
         // async check for events and messages via thread based message passing
-        
-        // this ugly mess ensure that each event listener gets restarted ONLY when it finishes, 
-        // NOT when other listeners finish.
-        // TODO: write a macro for this.
-        let mut event_watchers: Vec<BoxFuture<()>> = Vec::new();
-        let net_change = async {
-            let local_db = hook_db.clone();
-            loop {
-                let context = events::wifi_change().await;
-                run_hooks(context, &local_db.wifi_net, &local_db.hooks);
-            }
-        };
-        event_watchers.push(Box::pin(net_change));
-        
-        let net_conn = async {
-            let local_db = hook_db.clone();
-            loop {
-                let context = events::network_connection().await;
-                run_hooks(context, &local_db.net_con, &local_db.hooks)
-            }
-        };
-        event_watchers.push(Box::pin(net_conn));
-
-        let backlight = async {
-            let local_db = hook_db.clone();
-            loop {
-                let context = events::backlight_change().await;
-                run_hooks(context, &local_db.backlight, &local_db.hooks)
-            }
-        };
-        event_watchers.push(Box::pin(backlight));
-
-        let new_usb = async {
-            let local_db = hook_db.clone();
-            loop {
-                let context = events::new_usb().await;
-                run_hooks(context, &local_db.usb_dev, &local_db.hooks)
-            }
-        };
-        event_watchers.push(Box::pin(new_usb));
-
-        let bluetooth = async {
-            let local_db = hook_db.clone();
-            loop {
-                let context = events::blt_dev_conn(&mut conn_bt_dev).await;
-                run_hooks(context, &local_db.bluetooth_conn, &local_db.hooks)
-            }
-        };
-        event_watchers.push(Box::pin(bluetooth));
-
-        let ports = async {
-            let local_db = hook_db.clone();
-            loop {
-                let contexts = events::port_change(&stop_execs).await;
-                // println!("local_db -> {:?}", local_db); 
-                for context in contexts {
-                    run_hooks(context, &local_db.ports_change, &local_db.hooks);
-                }
-            }
-        };
-        event_watchers.push(Box::pin(ports));
-
         tokio::select! {
             message = hook_db_rx.recv() => {
                 match message {
@@ -311,25 +214,38 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: Has
                     }
                 }
             },
-            _ = join_all(event_watchers) => {}
-            // context = events::wifi_change() => run_hooks(context, &hook_db.wifi_net, &hook_db.hooks).await,
-            // context = events::network_connection() => run_hooks(context, &hook_db.net_con, &hook_db.hooks).await,
-            // // context = events::file_exists() => run_hooks(context, &hook_db.test_file_exists, &hook_db.hooks).await,
-            // context = events::backlight_change() => run_hooks(context, &hook_db.backlight, &hook_db.hooks).await,
-            // context = events::new_usb() => run_hooks(context, &hook_db.usb_dev, &hook_db.hooks).await,
-            // // context = events::discovered_blt() => run_hooks(context, &hook_db.bluetooth_dev, &hook_db.hooks).await,
-            // context = events::blt_dev_conn(&mut conn_bt_dev) => run_hooks(context, &hook_db.bluetooth_conn, &hook_db.hooks).await,
-            // contexts = events::port_change(&stop_execs) => {
-            //     let mut hooks = Vec::new(); 
-            //     for context in contexts {
-            //         // println!("{:?}", context);
-            //         hooks.push(run_hooks(context, &hook_db.ports_change, &hook_db.hooks));
-            //     }
-            //     let _ = join_all(hooks).await;
-            // }
+            context = &mut network_change => {
+                run_hooks(context, &hook_db.wifi_net, &hook_db.hooks);
+                network_change = Box::pin(events::wifi_change());
+            }
+            context = &mut net_connected => {
+                run_hooks(context, &hook_db.net_con, &hook_db.hooks);
+                net_connected = Box::pin(events::network_connection());
+            },
+            // context = events::file_exists() => run_hooks(context, &hook_db.test_file_exists, &hook_db.hooks).await,
+            context = &mut backlight => {
+                run_hooks(context, &hook_db.backlight, &hook_db.hooks);
+                backlight = Box::pin(events::backlight_change());
+            },
+            context = &mut new_usb => {
+                run_hooks(context, &hook_db.usb_dev, &hook_db.hooks);
+                new_usb = Box::pin(events::new_usb());
+            },
+            // context = events::discovered_blt() => run_hooks(context, &hook_db.bluetooth_dev, &hook_db.hooks).await,
+            (context, new_adrs) = &mut bluetooth_dev => {
+                conn_bt_dev.extend(new_adrs);
+                run_hooks(context, &hook_db.bluetooth_conn, &hook_db.hooks);
+                bluetooth_dev = Box::pin(events::blt_dev_conn(conn_bt_dev.clone()));
+            },
+            contexts = &mut ports => {
+                let mut hooks = Vec::new(); 
+                for context in contexts {
+                    // println!("{:?}", context);
+                    hooks.push(run_hooks(context, &hook_db.ports_change, &hook_db.hooks));
+                }
+                // let _ = join_all(hooks).await;
+                ports = Box::pin(events::port_change(&stop_execs));
+            }
         }
-        // for listener in event_watchers {
-        //     drop(listener);
-        // }
     }
 }

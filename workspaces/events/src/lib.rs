@@ -19,7 +19,7 @@ use iw::interfaces;
 //     SinkExt, StreamExt,
 // };
 
-type Context = HashMap<String, String>;
+pub type Context = HashMap<String, String>;
 const RESOLUTION: u64 = 1000;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -49,7 +49,7 @@ struct Port {
 // }
 
 pub async fn network_connection() -> Context {
-    println!("net connected");
+    // println!("net connected");
 
     let connected = check(None).await.is_ok();
     let mut context = HashMap::new();
@@ -85,15 +85,15 @@ fn get_name() -> String {
 }
 
 pub async fn wifi_change() -> Context {
-    println!("wifi change");
+    // println!("wifi change");
     let mut ssid = get_name();
     loop {
         sleep(Duration::from_millis(RESOLUTION)).await;
         let tmp_ssid = get_name();
         if tmp_ssid != ssid {
             let mut context = HashMap::new();
-            context.insert("network_was".to_string(), ssid);
-            context.insert("network_is".to_string(), tmp_ssid);
+            context.insert("old_network".to_string(), ssid);
+            context.insert("new_network".to_string(), tmp_ssid);
             return context;
         } else {
             ssid = tmp_ssid;
@@ -129,7 +129,7 @@ async fn get_bckl_perc(backlight_dir: &fs::DirEntry) -> Result<f64, std::io::Err
 } 
 
 pub async fn backlight_change() -> Context {
-    println!("backlight change");
+    // println!("backlight change");
 
     let backlight = match tokio::fs::read_dir("/sys/class/backlight/").await {
         Ok(mut dirs) => {
@@ -185,7 +185,7 @@ async fn make_usb_context(new_devs: &[UsbDevice]) -> Context {
 }
 
 pub async fn new_usb() -> Context {
-    println!("new usb");
+    // println!("new usb");
     let mut interval = time::interval(Duration::from_millis(RESOLUTION));
     let devices = usb_enumeration::enumerate(None, None).into_iter().collect::<HashSet<UsbDevice>>();
 
@@ -260,16 +260,17 @@ async fn make_adr(obj_path: &str) -> String {
     }
 }
 
-pub async fn blt_dev_conn(connected: &mut HashSet<String>) -> Context {
-    println!("bluetooth dev conn");
+pub async fn blt_dev_conn(mut connected: HashSet<String>) -> (Context, HashSet<String>) {
+    // println!("bluetooth dev conn");
+    // let mut connected = old_connected.clone();
     let mut default_context = HashMap::new();
     default_context.insert("event".to_string(), "N/A".to_string());
     default_context.insert("device_adr".to_string(), "N/A".to_string());
     // println!("connected devices before => {:?}", connected);
-    match get_blt_con(connected).await {
+    (match get_blt_con(&mut connected).await {
         Ok(context) => context,
         Err(_) => default_context, 
-    }
+    }, connected)
 }
 
 /// returns open tcp ports
@@ -378,7 +379,7 @@ async fn make_port_contexts(closed: HashSet<Port>, opened: HashSet<Port>) -> Vec
 }
 
 pub async fn port_change(stop_execs: &HashSet<String>) -> Vec<Context> {
-    println!("port state change");
+    // println!("port state change");
 
     let mut open_ports = get_tcp_ports(stop_execs).await;
     let mut interval = time::interval(Duration::from_millis(RESOLUTION / 8));
