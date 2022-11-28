@@ -1,12 +1,13 @@
 use procfs::process::{FDTarget, Stat};
 use tokio::time::{sleep, Duration};
+// use tokio::sync::mpsc::{Sender, Receiver, channel};
+use tokio::sync::mpsc::{UnboundedSender, unbounded_channel};
 use usb_enumeration::UsbDevice;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use online::tokio::check;
 use tokio::fs;
 use tokio::time;
-// use tokio::sync::mpsc::{Receiver, channel};
 // use usb_enumeration;
 use btleplug::api::{Central, CentralEvent, Manager as _,};
 use btleplug::platform::{Adapter, Manager};
@@ -345,7 +346,7 @@ async fn get_changed(old_ports: HashSet<Port>, new_ports: HashSet<Port>) -> (Has
     (old_diff, new_diff)
 }
 
-async fn make_context(closed_port: Port, became: &str) -> Context {
+fn make_context(closed_port: Port, became: &str) -> Context {
     let mut context = HashMap::new();
     context.insert("local_adr".to_string(), closed_port.local_addr);
     context.insert("remote_adr".to_string(), closed_port.remote_addr);
@@ -364,35 +365,59 @@ async fn make_context(closed_port: Port, became: &str) -> Context {
     context
 }
 
-async fn make_port_contexts(closed: HashSet<Port>, opened: HashSet<Port>) -> Vec<Context> {
+fn make_port_contexts(closed: HashSet<Port>, opened: HashSet<Port>) -> Vec<Context> {
     let mut contexts = Vec::new();
     // let mut ;
     for closed_port in closed {
-        contexts.push(make_context(closed_port, "closed").await);
+        contexts.push(make_context(closed_port, "closed"));
     }
 
     for opened_port in opened {
-        contexts.push(make_context(opened_port, "opened").await);
+        contexts.push(make_context(opened_port, "opened"));
     }
 
     contexts
 }
 
+async fn get_tcp_conn(stop_execs: HashSet<String>, sender: UnboundedSender<(HashSet<Port>, HashSet<Port>)>) {
+    let mut open_ports = get_tcp_ports(&stop_execs).await;
+
+    loop {
+        let new_open_ports = get_tcp_ports(&stop_execs).await;
+
+        if open_ports != new_open_ports {
+            let _ = sender.send(get_changed(open_ports, new_open_ports).await);
+            break;
+            // let (closed, opened) = get_changed(open_ports, new_open_ports).await;
+            // return make_port_contexts(closed, opened).await;
+        } else {
+            open_ports = new_open_ports;
+        }
+    }
+}
+
 pub async fn port_change(stop_execs: &HashSet<String>) -> Vec<Context> {
     // println!("port state change");
 
-    let mut open_ports = get_tcp_ports(stop_execs).await;
-    let mut interval = time::interval(Duration::from_millis(RESOLUTION / 8));
+    // let mut open_ports = get_tcp_ports(stop_execs).await;
+    let mut interval = time::interval(Duration::from_millis(RESOLUTION));
+    let (tx, mut rx) = unbounded_channel::<(HashSet<Port>, HashSet<Port>)>();
+    let corout = tokio::task::spawn(get_tcp_conn(stop_execs.clone(), tx));
 
     loop {
-        interval.tick().await;
-        let new_open_ports = get_tcp_ports(stop_execs).await;
-
-        if open_ports != new_open_ports {
-            let (closed, opened) = get_changed(open_ports, new_open_ports).await;
-            return make_port_contexts(closed, opened).await;
-        } else {
-            open_ports = new_open_ports;
+        
+        tokio::select! {
+            _ = interval.tick() => {},
+           res = rx.recv() => {
+                match res {
+                    Some((closed, opened)) => {
+                        corout.abort();
+                        return make_port_contexts(closed, opened);
+                    }
+                    None => {}
+                }
+                
+            },
         }
     }
 }

@@ -9,6 +9,6 @@ edition = "2021"
 tokio = {version = "1.22", features = ["sync", "macros", "process"]}  # "rt-multi-thread"
 events = {path = "../events"}
 config = {path = "../config"}
-futures-util = {version = "0.3.25", default-features = false, features = ["async-await"]}
-
+# futures-util = {version = "0.3.25", default-features = false, features = ["async-await"]}
+# futures = {version = "0.3.24", default-features = false, features = ["std"]}
 

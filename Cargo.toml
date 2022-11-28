@@ -23,7 +23,7 @@ members = [
 ]
 
 [features]
-default = ["common", "hooks", "qtile"]
+default = ["common", "hooks"]
 bspwm = ["dep:bspwm", "dep:wm_lib"]
 qtile = ["dep:qtile", "dep:wm_lib"]
 common = ["systemctl", "media", "dep:common"]

@@ -111,6 +111,7 @@ async fn handle_client_gen(
     drop(stream)
 }
 
+#[cfg(feature = "qtile")]
 pub async fn handle_client_qtile(
     mut stream: UnixStream, 
     layout: &mut Option<qtile::QtileCmdData>, 
