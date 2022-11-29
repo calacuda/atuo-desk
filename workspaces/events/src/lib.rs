@@ -346,17 +346,17 @@ async fn get_changed(old_ports: HashSet<Port>, new_ports: HashSet<Port>) -> (Has
     (old_diff, new_diff)
 }
 
-fn make_context(closed_port: Port, became: &str) -> Context {
+fn make_context(port: Port, became: &str) -> Context {
     let mut context = HashMap::new();
-    context.insert("local_adr".to_string(), closed_port.local_addr);
-    context.insert("remote_adr".to_string(), closed_port.remote_addr);
-    context.insert("state".to_string(), closed_port.state);
-    context.insert("executable".to_string(), match closed_port.exec {
+    context.insert("local_adr".to_string(), port.local_addr);
+    context.insert("remote_adr".to_string(), port.remote_addr);
+    context.insert("state".to_string(), port.state);
+    context.insert("executable".to_string(), match port.exec {
         Some(exe) => exe,
         None => "UNKNOWN".to_string(),
     });
-    context.insert("inode".to_string(), format!("{}", closed_port.inode));
-    context.insert("l_addr".to_string(), match closed_port.pid {
+    context.insert("inode".to_string(), format!("{}", port.inode));
+    context.insert("l_addr".to_string(), match port.pid {
         Some(pid) => format!("{}", pid),
         None => "UNKNOWN".to_string(),
     });
