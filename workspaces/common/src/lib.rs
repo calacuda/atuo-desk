@@ -9,6 +9,7 @@ mod power;
 mod xrandr;
 
 pub fn open_program(program: &str) -> u8 {
+    // TODO: make the programs keep running after desktop-automater stops or gets killed.
     println!("[LOG] running: {}", program);
     let process = if program.ends_with(".desktop") {
         Command::new("gtk-launch")
@@ -19,7 +20,7 @@ pub fn open_program(program: &str) -> u8 {
     } else {
         Command::new("sh")
             .arg("-c")
-            .arg(program)
+            .arg(format!("coproc {program}; disown; exit"))  
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()

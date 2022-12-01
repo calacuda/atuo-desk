@@ -6,6 +6,12 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use futures::future::BoxFuture;
 use config::{GenericRes, OptGenRes};
 
+enum WindowManager {
+    Qtile,
+    BSPWM,
+    Headless
+}
+
 fn make_payload(ec: u8, message: Option<String>) -> Vec<u8> {
     let mut payload = vec![ec, if ec > 0 {7} else {0}];
     match message {
@@ -151,6 +157,27 @@ pub async fn handle_client_qtile(
     }
 }
 
+fn get_running_wm() -> WindowManager {
+    use std::env;
+    use std::path::Path;
+
+    match (env::var("HOME"), env::var("DISPLAY")) {
+        (Ok(home), Ok(display)) => {
+            let qtile_soc_fname = format!("{home}/.cache/qtile/qtilesocket.{display}");
+            // println!("[DEV_DEBUG] qtile_socket_fname => {qtile_soc_fname}");
+
+            if Path::new(&qtile_soc_fname).exists() {
+                println!("[LOG] Running in Qtile mode");
+                WindowManager::Qtile
+            } else {
+                println!("[LOG] Running in BSPWM mode");
+                WindowManager::BSPWM
+            }
+        }
+        _ => WindowManager::Headless, 
+    }
+}
+
 async fn recv_loop(configs: config::Config) -> std::io::Result<()> {
     // println!("recv_loop");
     let program_socket = configs.server.listen_socket.as_str();
@@ -171,32 +198,39 @@ async fn recv_loop(configs: config::Config) -> std::io::Result<()> {
     } else {
         None
     };
+    let wm = get_running_wm();
 
     loop {
         match listener.accept().await {
             Ok((stream, _addr)) => {
                 /* connection succeeded */
-                #[cfg(feature = "qtile")]
-                match handle_client_qtile(stream, &mut layout, &mut hooks, wm_socket).await {
-                    Some(lo) => {
-                        layout = Some(lo.clone());
-                        println!("[DEBUG] layout: {:?}", lo);
-                        task::spawn(
-                            async move {
-                                for program in lo.queue {
-                                    common::open_program(&program);
-                                }
+                match wm {
+                    WindowManager::Qtile => {
+                        #[cfg(feature = "qtile")]
+                        match handle_client_qtile(stream, &mut layout, &mut hooks, wm_socket).await {
+                            Some(lo) => {
+                                layout = Some(lo.clone());
+                                println!("[DEBUG] layout: {:?}", lo);
+                                task::spawn(
+                                    async move {
+                                        for program in lo.queue {
+                                            common::open_program(&program);
+                                        }
+                                    }
+                                );
                             }
-                        );
+                            None => {}
+                        }
                     }
-                    None => {}
-                }
-                #[cfg(not(feature = "qtile"))]
-                {
-                    // let tmp_wms = wm_socket.to_string();
-                    // let tmp_hooks = hooks.clone();
-                    // let tmp_config_hooks = configs.hooks.clone();
-                    handle_client_gen(&mut hooks, stream, wm_socket).await;
+                    WindowManager::BSPWM | WindowManager::Headless => {
+                        #[cfg(not(feature = "qtile"))]
+                        {
+                            // let tmp_wms = wm_socket.to_string();
+                            // let tmp_hooks = hooks.clone();
+                            // let tmp_config_hooks = configs.hooks.clone();
+                            handle_client_gen(&mut hooks, stream, wm_socket).await;
+                        }
+                    }
                 }
             }
             Err(err) => {
@@ -212,7 +246,7 @@ async fn recv_loop(configs: config::Config) -> std::io::Result<()> {
     Ok(())
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread", worker_threads = 10)]
 async fn main() -> Result<(), ()> {
     let configs = match config::get_configs() {
         Ok(configs) => configs,

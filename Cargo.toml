@@ -27,9 +27,11 @@ default = ["common", "hooks"]
 bspwm = ["dep:bspwm", "dep:wm_lib"]
 qtile = ["dep:qtile", "dep:wm_lib"]
 common = ["systemctl", "media", "dep:common"]
-systemctl = ["common/systemctl", "dep:common"]
-media = ["common/media", "dep:common"]
+systemctl = ["dep:common", "common/systemctl"]
+media = [ "dep:common", "common/media"]
 hooks = ["dep:hooks", "dep:events", "tokio/sync"]
+
+all_wms = ["qtile", "bspwm"]
 
 [dependencies]
 clap = "3.2.8"
@@ -41,5 +43,5 @@ bspwm = { path = "workspaces/bspwm", optional=true }
 wm_lib = { path = "workspaces/wm-lib", optional=true }
 hooks = { path = "workspaces/hooks", optional=true }
 events = { path = "workspaces/events", optional=true }
-tokio = {version = "1.22", default-features = false, features = ["io-util"]}
+tokio = {version = "1.22", default-features = false, features = ["io-util", "rt-multi-thread"]}
 futures = {version = "0.3.25", default-features = false, features = ["async-await"]}
