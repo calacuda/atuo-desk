@@ -72,7 +72,7 @@ impl QtileCmdData {
     }
 
     fn get_location_helper(&mut self, wm_class: &str) -> Option<String> {
-        println!("wm_class :  {wm_class}, rules :  {:?}", self.rules);
+        // println!("wm_class :  {wm_class}, rules :  {:?}", self.rules);
         match self.rules.get_mut(wm_class) {
             Some(desktops) => desktops.pop(),
             None => None
