@@ -15,21 +15,25 @@ enum WindowManager {
 fn make_payload(ec: u8, message: Option<String>) -> Vec<u8> {
     let mut payload = vec![ec, if ec > 0 {7} else {0}];
     match message {
-        Some(mesg) => {let _ = mesg.as_bytes().into_iter().map(|byte| payload.push(*byte));},
+        Some(mesg) => {
+            // println!("making payload with message {mesg}");
+            payload.append(&mut mesg.as_bytes().into_iter().map(|byte| *byte).collect::<Vec<u8>>());
+        },
         None => {}
     }
+    // println!("payload => {:?}", payload);
     payload
 }
 
-#[cfg(feature = "test")]
 /// tests the function "make_payload"
+#[test]
 fn test_make_payload() {
-    let pl_1 = make_payload(5, Some("12345"));
-    let pl_2 = make_payload(0, Some("123"));
+    let pl_1 = make_payload(5, Some("12345".to_string()));
+    let pl_2 = make_payload(0, Some("123".to_string()));
     let pl_3 = make_payload(5, None);
     let pl_4 = make_payload(0, None);
-    let pl_5 = make_payload(0, String::new());
-    let pl_6 = make_payload(0, "");
+    let pl_5 = make_payload(0, Some(String::new()));
+    let pl_6 = make_payload(0, Some("".to_string()));
     // assert_eq!(pl_1.len(), 7);
     assert_eq!(pl_1, vec![5, 7, 49, 50, 51, 52, 53]);
     assert_eq!(pl_2, vec![0, 0, 49, 50, 51]);
@@ -40,7 +44,9 @@ fn test_make_payload() {
 }
 
 fn write_shutdown(stream: &mut UnixStream, ec: u8, message: Option<String>) {
+    // println!("message => {:?}", message);
     let payload = make_payload(ec, message);
+    // println!("payload => {:?}", payload);
     let _ = stream.try_write(&payload);
     let _ = stream.shutdown();
 }
@@ -125,7 +131,7 @@ pub async fn handle_client_qtile(
     wm_socket: &str,
 ) -> Option<qtile::QtileCmdData> {
     let command = read_command(&mut stream).await;
-    println!("command: {}", command);
+    // println!("command: {}", command);
     let (cmd, args) = split_cmd(&command);
 
     // handle comand here
@@ -137,6 +143,7 @@ pub async fn handle_client_qtile(
             Some(new_layout)
         },
         Some(qtile::QtileAPI::Message(message)) => {
+            println!("[LOG] handle_qtile_client => Message");
             println!("[DEBUG] sending message => {message}");
             write_shutdown(&mut stream, 0, Some(message));
             drop(stream);
