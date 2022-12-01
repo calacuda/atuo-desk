@@ -381,8 +381,10 @@ fn make_port_contexts(closed: HashSet<Port>, opened: HashSet<Port>) -> Vec<Conte
 
 async fn get_tcp_conn(stop_execs: HashSet<String>, sender: UnboundedSender<(HashSet<Port>, HashSet<Port>)>) {
     let mut open_ports = get_tcp_ports(&stop_execs).await;
+    let mut interval = time::interval(Duration::from_millis(RESOLUTION/4));
 
     loop {
+        interval.tick().await;
         let new_open_ports = get_tcp_ports(&stop_execs).await;
 
         if open_ports != new_open_ports {
