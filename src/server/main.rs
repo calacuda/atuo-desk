@@ -241,7 +241,7 @@ async fn recv_loop(configs: config::Config) -> std::io::Result<()> {
                 }
             }
             Err(err) => {
-                println!("{:#?}", err);
+                println!("[ERROR] could not except socket connection. {:#?}", err);
                 /* connection failed */
                 break;
             }
@@ -258,7 +258,8 @@ async fn main() -> Result<(), ()> {
     let configs = match config::get_configs() {
         Ok(configs) => configs,
         Err(e) => {
-            println!("{e}");
+            println!("[ERROR] could not load configs. reason: {e}");
+            println!("now exiting");
             return Err(());
         }
     };
