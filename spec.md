@@ -4,7 +4,7 @@
 ## sending commands to the server:
 format: `command arg1 arg2 arg3`
 ~~if a single argument has spaces in it than they should be encoded as `\s`.
-in this example: `open-here tmux\snew\s-d\s-s\sfoobar` the `open-here` command gets `tmux new -d -s foobar` as inputs. this runs the tmux command as a shell command and then exits. this slash s encoding is done to make parsing the commands easier, simpler, and more reliable.~~ (not yet implemented)
+in this example: `open-here tmux\snew\s-d\s-s\sfoobar` the `open-here` command gets `tmux new -d -s foobar` as inputs. this runs the tmux command as a shell command and then exits. this slash s encoding is done to make parsing the commands easier, simpler, and more reliable.~~ (not yet needed)
 
 once a command is sent to the server it will reply with an exit code (see below)
 

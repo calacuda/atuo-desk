@@ -15,6 +15,7 @@ path = "src/client/main.rs"
 members = [
     "workspaces/bspwm",
     "workspaces/qtile",
+    "workspaces/leftwm",
     "workspaces/common",
     "workspaces/wm-lib",
     "workspaces/hooks",
@@ -23,23 +24,25 @@ members = [
 ]
 
 [features]
-default = ["common", "hooks"]
-bspwm = ["dep:bspwm", "dep:wm_lib"]
-qtile = ["dep:qtile", "dep:wm_lib"]
+default = ["common", "hooks", "all_wms"]
+bspwm = ["dep:wm_lib"]
+qtile = ["dep:wm_lib"]
+leftwm = ["dep:wm_lib"]
 common = ["systemctl", "media", "dep:common"]
 systemctl = ["dep:common", "common/systemctl"]
 media = [ "dep:common", "common/media"]
 hooks = ["dep:hooks", "dep:events", "tokio/sync"]
 
-all_wms = ["qtile", "bspwm"]
+all_wms = ["qtile", "bspwm", "leftwm"]
 
 [dependencies]
 clap = "3.2.8"
 shellexpand = "2.1.0"
 config = { path = "workspaces/config"}
 common = { path = "workspaces/common", optional=true}
-qtile = { path = "workspaces/qtile", optional=true }
-bspwm = { path = "workspaces/bspwm", optional=true }
+qtile = { path = "workspaces/qtile"}  # , optional=true }
+bspwm = { path = "workspaces/bspwm"}  # , optional=true }
+leftwm = { path = "workspaces/leftwm"}  #, optional=true }
 wm_lib = { path = "workspaces/wm-lib", optional=true }
 hooks = { path = "workspaces/hooks", optional=true }
 events = { path = "workspaces/events", optional=true }

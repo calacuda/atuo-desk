@@ -9,6 +9,7 @@ use config::{GenericRes, OptGenRes};
 enum WindowManager {
     Qtile,
     BSPWM,
+    LeftWM,
     Headless
 }
 
@@ -60,6 +61,7 @@ async fn read_command(stream: &mut UnixStream) -> String {
 }
 
 async fn switch_board<'t>(
+    wm: &WindowManager,
     cmd: &'t str, 
     args: &'t str, 
     spath: &'t str, 
@@ -68,11 +70,21 @@ async fn switch_board<'t>(
     let mut futures: Vec<BoxFuture<'t, OptGenRes>> = Vec::new();
     // let mut futures: Vec<SwitchBoardFuture> = Vec::new();
 
-    #[cfg(feature = "qtile")]
-    futures.push(Box::pin(qtile::qtile_switch(cmd, args, spath)));
-    #[cfg(feature = "bspwm")]
-    futures.push(Box::pin(bspwm::bspwm_switch(cmd, args, spath)));
-
+    match wm { 
+        WindowManager::Qtile => {
+            // #[cfg(feature = "qtile")]
+            futures.push(Box::pin(qtile::qtile_switch(cmd, args, spath)));
+        }
+        WindowManager::BSPWM => {
+            // #[cfg(feature = "bspwm")]
+            futures.push(Box::pin(bspwm::bspwm_switch(cmd, args, spath)));
+        }
+        WindowManager::LeftWM => {
+            // #[cfg(feature = "leftwm")]
+            futures.push(Box::pin(leftwm::leftwm_switch(cmd, args, spath)));
+        }
+        WindowManager::Headless => {}
+    }
     // common should be checked last.
     #[cfg(feature = "common")]
     futures.push(Box::pin(common::common_switch(cmd, args)));
@@ -100,8 +112,9 @@ fn split_cmd(command: &str) -> (String, String){
     }
 }
 
-#[cfg(not(feature = "qtile"))]
+// #[cfg(not(feature = "qtile"))]
 async fn handle_client_gen(
+    wm: &WindowManager,
     hooks: &mut Option<hooks::HookData>, 
     // _config_hooks: &config::Hooks, 
     mut stream: UnixStream, 
@@ -114,7 +127,7 @@ async fn handle_client_gen(
 
 
     // handle comand here
-    let (ec, message) = switch_board(&cmd, &args, spath, hooks).await;
+    let (ec, message) = switch_board(wm, &cmd, &args, spath, hooks).await;
     // let mesg = match message {
     //     Some(mesg) => mesg,
     //     None => 
@@ -123,8 +136,9 @@ async fn handle_client_gen(
     drop(stream)
 }
 
-#[cfg(feature = "qtile")]
-pub async fn handle_client_qtile(
+// #[cfg(feature = "qtile")]
+async fn handle_client_qtile(
+    wm: &WindowManager,
     mut stream: UnixStream, 
     layout: &mut Option<qtile::QtileCmdData>, 
     hook_data: &mut Option<hooks::HookData>,
@@ -156,7 +170,7 @@ pub async fn handle_client_qtile(
             None
         }
         None => {
-            let (ec, message) = switch_board(&cmd, &args, wm_socket, hook_data).await;
+            let (ec, message) = switch_board(wm, &cmd, &args, wm_socket, hook_data).await;
             write_shutdown(&mut stream, ec, message);
             drop(stream);
             None
@@ -166,7 +180,7 @@ pub async fn handle_client_qtile(
 
 fn get_running_wm() -> WindowManager {
     use std::env;
-    use std::path::Path;
+    use std::path::Path;println!("[ERROR] Couldn't find the leftwm command.pipe file.");
 
     match (env::var("HOME"), env::var("DISPLAY")) {
         (Ok(home), Ok(display)) => {
@@ -176,9 +190,14 @@ fn get_running_wm() -> WindowManager {
             if Path::new(&qtile_soc_fname).exists() {
                 println!("[LOG] Running in Qtile mode");
                 WindowManager::Qtile
-            } else {
+            } else if Path::new("/tmp/bspwm_0_0-socket").exists() {
                 println!("[LOG] Running in BSPWM mode");
                 WindowManager::BSPWM
+            } else if leftwm::get_cmd_file() != None {
+                println!("[LOG] Running in leftwm mode");
+                WindowManager::LeftWM
+            } else {
+                WindowManager::Headless
             }
         }
         _ => WindowManager::Headless, 
@@ -191,7 +210,7 @@ async fn recv_loop(configs: config::Config) -> std::io::Result<()> {
     let wm_socket = configs.server.wm_socket.as_str();
     println!("[LOG] listening on socket: {}", program_socket);
     let listener = UnixListener::bind(program_socket)?;
-    #[cfg(feature = "qtile")]
+    // #[cfg(feature = "qtile")]  // make this compile for all features?
     let mut layout: Option<qtile::QtileCmdData> = None;
     let mut hooks: Option<hooks::HookData> = if cfg!(feature = "hooks") {
         let (control_tx, mut control_rx) = tokio::sync::mpsc::channel::<hooks::HookDB>(1);
@@ -213,8 +232,8 @@ async fn recv_loop(configs: config::Config) -> std::io::Result<()> {
                 /* connection succeeded */
                 match wm {
                     WindowManager::Qtile => {
-                        #[cfg(feature = "qtile")]
-                        match handle_client_qtile(stream, &mut layout, &mut hooks, wm_socket).await {
+                        // #[cfg(feature = "qtile")]
+                        match handle_client_qtile(&wm, stream, &mut layout, &mut hooks, wm_socket).await {
                             Some(lo) => {
                                 layout = Some(lo.clone());
                                 println!("[DEBUG] layout: {:?}", lo);
@@ -229,13 +248,15 @@ async fn recv_loop(configs: config::Config) -> std::io::Result<()> {
                             None => {}
                         }
                     }
-                    WindowManager::BSPWM | WindowManager::Headless => {
-                        #[cfg(not(feature = "qtile"))]
+                    WindowManager::BSPWM | 
+                    WindowManager::LeftWM |
+                    WindowManager::Headless => {
+                        // #[cfg(not(feature = "qtile"))]
                         {
                             // let tmp_wms = wm_socket.to_string();
                             // let tmp_hooks = hooks.clone();
                             // let tmp_config_hooks = configs.hooks.clone();
-                            handle_client_gen(&mut hooks, stream, wm_socket).await;
+                            handle_client_gen(&wm, &mut hooks, stream, wm_socket).await;
                         }
                     }
                 }
