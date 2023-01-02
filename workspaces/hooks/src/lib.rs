@@ -238,16 +238,9 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: Has
                 bluetooth_dev = Box::pin(events::blt_dev_conn(conn_bt_dev.clone()));
             },
             contexts = &mut ports => {
-                // let mut hooks = Vec::new(); 
                 for context in contexts {
-                    // printluse futures::{
-//     channel::mpsc::{channel, Receiver},
-//     SinkExt, StreamExt,
-// };n!("{:?}", context);
-                    // hooks.push(run_hooks(context, &hook_db.ports_change, &hook_db.hooks));
                     run_hooks(context, &hook_db.ports_change, &hook_db.hooks);
                 }
-                // let _ = join_all(hooks).await;
                 ports = Box::pin(events::port_change(&stop_execs));
             }
         }

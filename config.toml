@@ -5,6 +5,7 @@ listen_socket = "/tmp/desktop-automater"
 wm_socket = "/tmp/QTILE_SOC"
 
 [hooks]
+listen = true
 exec_ignore = [
 			"firefox", 
 			"brave", 
@@ -17,7 +18,7 @@ exec_ignore = [
 
 [[hooks.hooks]]
 event = "wifi-network-change"
-hook = "~/.local/bin/ensure-home-vpn.py"
+hook = "~/.local/bin/network-notify"
 
 [[hooks.hooks]]
 event = "port-status-change"

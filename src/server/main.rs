@@ -212,7 +212,7 @@ async fn recv_loop(configs: config::Config) -> std::io::Result<()> {
     let listener = UnixListener::bind(program_socket)?;
     // #[cfg(feature = "qtile")]  // make this compile for all features?
     let mut layout: Option<qtile::QtileCmdData> = None;
-    let mut hooks: Option<hooks::HookData> = if cfg!(feature = "hooks") {
+    let mut hooks: Option<hooks::HookData> = if Some(true) == configs.hooks.listen && cfg!(feature = "hooks") {
         let (control_tx, mut control_rx) = tokio::sync::mpsc::channel::<hooks::HookDB>(1);
         let stop_exec = configs.hooks.exec_ignore.clone();
         let conf_hooks = configs.hooks.hooks.clone();

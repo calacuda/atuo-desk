@@ -17,6 +17,7 @@ pub struct Server {
 #[derive(Deserialize, Clone)]
 pub struct Hooks {
     pub exec_ignore: HashSet<String>,
+    pub listen: Option<bool>,
     pub hooks: Vec<Hook>,
 }
 
