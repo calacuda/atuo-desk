@@ -38,6 +38,7 @@ all_wms = ["qtile", "bspwm", "leftwm"]
 [dependencies]
 clap = "3.2.8"
 shellexpand = "2.1.0"
+sysinfo = "0.27.2"
 config = { path = "workspaces/config"}
 common = { path = "workspaces/common", optional=true}
 qtile = { path = "workspaces/qtile"}  # , optional=true }

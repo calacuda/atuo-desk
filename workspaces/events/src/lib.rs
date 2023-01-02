@@ -21,7 +21,7 @@ use iw::interfaces;
 // };
 
 pub type Context = HashMap<String, String>;
-const RESOLUTION: u64 = 1000;
+const RESOLUTION: u64 = 2500;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct Port {
@@ -140,7 +140,7 @@ pub async fn backlight_change() -> Context {
             }
         }
         Err(_) => {
-            println!("could not read \"/sys/class/backlight\" directory.");
+            println!("[ERROR] back light event could not read \"/sys/class/backlight\" directory.");
             return HashMap::new();
         }
     };
@@ -381,7 +381,7 @@ fn make_port_contexts(closed: HashSet<Port>, opened: HashSet<Port>) -> Vec<Conte
 
 async fn get_tcp_conn(stop_execs: HashSet<String>, sender: UnboundedSender<(HashSet<Port>, HashSet<Port>)>) {
     let mut open_ports = get_tcp_ports(&stop_execs).await;
-    let mut interval = time::interval(Duration::from_millis(RESOLUTION/4));
+    let mut interval = time::interval(Duration::from_millis(RESOLUTION/10));
 
     loop {
         interval.tick().await;

@@ -5,12 +5,14 @@ use tokio::task;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use futures::future::BoxFuture;
 use config::{GenericRes, OptGenRes};
+use sysinfo::{ProcessExt, System, SystemExt};
 
 enum WindowManager {
     Qtile,
     BSPWM,
     LeftWM,
-    Headless
+    NoWM,
+    Headless,
 }
 
 fn make_payload(ec: u8, message: Option<String>) -> Vec<u8> {
@@ -72,18 +74,19 @@ async fn switch_board<'t>(
 
     match wm { 
         WindowManager::Qtile => {
-            // #[cfg(feature = "qtile")]
+            #[cfg(feature = "qtile")]
             futures.push(Box::pin(qtile::qtile_switch(cmd, args, spath)));
         }
         WindowManager::BSPWM => {
-            // #[cfg(feature = "bspwm")]
+            #[cfg(feature = "bspwm")]
             futures.push(Box::pin(bspwm::bspwm_switch(cmd, args, spath)));
         }
         WindowManager::LeftWM => {
-            // #[cfg(feature = "leftwm")]
+            #[cfg(feature = "leftwm")]
             futures.push(Box::pin(leftwm::leftwm_switch(cmd, args, spath)));
         }
-        WindowManager::Headless => {}
+        WindowManager::Headless |
+        WindowManager::NoWM => {}
     }
     // common should be checked last.
     #[cfg(feature = "common")]
@@ -178,29 +181,45 @@ async fn handle_client_qtile(
     }
 }
 
+fn is_wm_running(procs: &System, proc_name: &str, wm: &str) -> bool {
+    for proc in procs.processes_by_exact_name(proc_name) {
+        // println!("{} | {:?}", proc.name(), proc.exe());
+        if proc.name() == wm || proc.exe().ends_with(wm) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 fn get_running_wm() -> WindowManager {
     use std::env;
-    use std::path::Path;println!("[ERROR] Couldn't find the leftwm command.pipe file.");
+    // use std::path::Path;
+    // println!("[ERROR] Couldn't find the leftwm command.pipe file.");
+    let procs = System::new_all();
 
-    match (env::var("HOME"), env::var("DISPLAY")) {
-        (Ok(home), Ok(display)) => {
-            let qtile_soc_fname = format!("{home}/.cache/qtile/qtilesocket.{display}");
+    match env::var("DISPLAY") {
+        Ok(_) => {
+            // let qtile_soc_fname = format!("{home}/.cache/qtile/qtilesocket.{display}");
             // println!("[DEV_DEBUG] qtile_socket_fname => {qtile_soc_fname}");
 
-            if Path::new(&qtile_soc_fname).exists() {
+            // if Path::new(&qtile_soc_fname).exists() {
+            if is_wm_running(&procs,"qtile", "qtile") {
                 println!("[LOG] Running in Qtile mode");
                 WindowManager::Qtile
-            } else if Path::new("/tmp/bspwm_0_0-socket").exists() {
+            // } else if Path::new("/tmp/bspwm_0_0-socket").exists() {
+            } else if is_wm_running(&procs, "bspwm", "bspwm") {
                 println!("[LOG] Running in BSPWM mode");
                 WindowManager::BSPWM
-            } else if leftwm::get_cmd_file() != None {
+            // } else if leftwm::get_cmd_file() != None {
+            } else if is_wm_running(&procs,"leftwm", "leftwm") {
                 println!("[LOG] Running in leftwm mode");
                 WindowManager::LeftWM
             } else {
                 WindowManager::Headless
             }
         }
-        _ => WindowManager::Headless, 
+        _ => WindowManager::NoWM, 
     }
 }
 
@@ -250,7 +269,8 @@ async fn recv_loop(configs: config::Config) -> std::io::Result<()> {
                     }
                     WindowManager::BSPWM | 
                     WindowManager::LeftWM |
-                    WindowManager::Headless => {
+                    WindowManager::Headless |
+                    WindowManager::NoWM => {
                         // #[cfg(not(feature = "qtile"))]
                         {
                             // let tmp_wms = wm_socket.to_string();
