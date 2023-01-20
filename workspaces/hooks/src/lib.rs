@@ -213,7 +213,7 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: Has
     let (ports_tx, mut ports_rx) = unbounded_channel::<Vec<Context>>();
     let mut _ports = task::spawn(
         async move {
-            events::port_change(stop_execs, ports_tx)
+            events::port_change(stop_execs, ports_tx).await
         }
     );
 
@@ -221,7 +221,7 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: Has
     let (blt_tx, mut blt_rx) = unbounded_channel::<Context>();
     let mut _bluetooth_dev = task::spawn( 
         async move { 
-            events::blt_dev_conn(blt_tx) 
+            events::blt_dev_conn(blt_tx).await
         }
     );
     
@@ -229,7 +229,7 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: Has
     let (usb_tx, mut usb_rx) = unbounded_channel::<Context>();
     let mut _new_usb = task::spawn(
         async move {
-            events::new_usb(usb_tx)
+            events::new_usb(usb_tx).await
         }
     );
     
@@ -237,7 +237,7 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: Has
     let (bl_tx, mut bl_rx) = unbounded_channel::<Context>();
     let mut _backlight = task::spawn(
         async move {
-            events::backlight_change(bl_tx)
+            events::backlight_change(bl_tx).await
         }
     );
 
@@ -245,7 +245,7 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: Has
     let (net_con_tx, mut net_con_rx) = unbounded_channel::<Context>();
     let mut _net_connected = task::spawn(
         async move {
-            events::network_connection(net_con_tx)
+            events::network_connection(net_con_tx).await
         }
     );
 
@@ -253,7 +253,7 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: Has
     let (wifi_net_tx, mut wifi_net_rx) = unbounded_channel::<Context>();
     let mut _network_change = task::spawn(
         async move {
-            events::wifi_change(wifi_net_tx)
+            events::wifi_change(wifi_net_tx).await
         }
     );
 
@@ -286,6 +286,7 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: Has
                 run_hooks(context, &hook_db.bluetooth_conn, &hook_db.hooks);
             },
             contexts = ports_rx.recv() => {
+                // println!("running hooks");
                 if let Some(contexts) = contexts {
                     for context in contexts {
                         run_hooks(Some(context), &hook_db.ports_change, &hook_db.hooks);

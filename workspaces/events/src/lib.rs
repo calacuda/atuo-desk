@@ -55,7 +55,7 @@ pub async fn network_connection(return_tx: UnboundedSender<Context>) {
     let mut connected = check(None).await.is_ok();
     
     loop {
-        sleep(Duration::from_millis(RESOLUTION * 2)).await;
+        sleep(Duration::from_millis(RESOLUTION * 4)).await;
         let tmp_connected = check(None).await.is_ok();
         if tmp_connected != connected {
             let mut context = HashMap::new();
@@ -94,7 +94,7 @@ pub async fn wifi_change(return_tx: UnboundedSender<Context>) -> Context {
     // println!("wifi change");
     let mut old_ssid = get_name();
     loop {
-        sleep(Duration::from_millis(RESOLUTION)).await;
+        sleep(Duration::from_millis(RESOLUTION * 3)).await;
         let new_ssid = get_name();
         if new_ssid != old_ssid {
             let mut context = HashMap::new();
@@ -156,7 +156,7 @@ pub async fn backlight_change(return_tx: UnboundedSender<Context>) {
     };
 
     let mut start_perc = get_bckl_perc(&backlight).await.unwrap();
-    let mut interval = time::interval(Duration::from_millis(RESOLUTION));
+    let mut interval = time::interval(Duration::from_millis(RESOLUTION * 2));
 
     loop {
         interval.tick().await;
@@ -201,7 +201,7 @@ async fn make_usb_context(new_devs: &[UsbDevice]) -> Context {
 
 pub async fn new_usb(return_tx: UnboundedSender<Context>) {
     // println!("new usb");
-    let mut interval = time::interval(Duration::from_millis(RESOLUTION));
+    let mut interval = time::interval(Duration::from_millis(RESOLUTION * 2));
     let devices = usb_enumeration::enumerate(None, None).into_iter().collect::<HashSet<UsbDevice>>();
 
     // println!("{:?}", devices.len());
@@ -283,6 +283,7 @@ async fn make_adr(obj_path: &str) -> String {
 pub async fn blt_dev_conn(return_tx: UnboundedSender<Context>) {
     // println!("bluetooth dev conn");
     // let mut connected = old_connected.clone();
+    let mut interval = time::interval(Duration::from_millis(RESOLUTION * 2));
     let mut connected: HashSet<String> = HashSet::new();
     match get_blt_con(&mut connected).await {
         Ok(_) => {}  // context.keys().collect(),
@@ -297,12 +298,18 @@ pub async fn blt_dev_conn(return_tx: UnboundedSender<Context>) {
     default_context.insert("device_adr".to_string(), "N/A".to_string());
     // println!("connected devices before => {:?}", connected);
     loop {
-        match return_tx.send(match get_blt_con(&mut connected).await {
+        interval.tick().await;
+        // let old_dev_list = connected.clone();
+        let devs = match get_blt_con(&mut connected).await {
             Ok(context) => context,
             Err(_) => default_context.clone(), 
-        }) {
-            Ok(_) => {}
-            Err(e) => println!("{e}\n[ERROR] could not send bluetooth device connection data.")
+        };
+        if !connected.is_empty() {
+            match return_tx.send(devs) {
+                Ok(_) => {}
+                Err(e) => println!("{e}\n[ERROR] could not send bluetooth device connection data.")
+            }
+
         }
     }
 }
@@ -412,43 +419,42 @@ fn make_port_contexts(closed: HashSet<Port>, opened: HashSet<Port>) -> Vec<Conte
     contexts
 }
 
-fn get_tcp_conn(stop_execs: HashSet<String>, sender: UnboundedSender<(HashSet<Port>, HashSet<Port>)>) {
+async fn get_tcp_conn(stop_execs: HashSet<String>, sender: UnboundedSender<(HashSet<Port>, HashSet<Port>)>) {
     let mut open_ports = get_tcp_ports(&stop_execs);
     // let mut interval = time::interval(Duration::from_millis(RESOLUTION/10));
-    let interval = std::time::Duration::from_millis(RESOLUTION/10);
+    let interval = std::time::Duration::from_millis(RESOLUTION/8);
 
     loop {
         // interval.tick().await;
-        std::thread::sleep(interval);
+        sleep(interval).await;
         let new_open_ports = get_tcp_ports(&stop_execs);
 
         if open_ports != new_open_ports {
-            match sender.send(get_changed(open_ports, new_open_ports)) {
+            match sender.send(get_changed(open_ports, new_open_ports.clone())) {
                 Ok(_) => {}
                 Err(_) => {println!("could not send port status change to ")}
             }
-            break;
             // let (closed, opened) = get_changed(open_ports, new_open_ports).await;
             // return make_port_contexts(closed, opened).await;
-        } else {
             open_ports = new_open_ports;
         }
     }
 }
 
 pub async fn port_change(stop_execs: HashSet<String>, return_tx: UnboundedSender<Vec<Context>>) -> Vec<Context> {
-    // println!("port state change");
-
     let (tx, mut rx) = unbounded_channel::<(HashSet<Port>, HashSet<Port>)>();
     // let tse = stop_execs.clone();
     let _corout = tokio::task::spawn(
         async move {
-            get_tcp_conn(stop_execs, tx)
+            get_tcp_conn(stop_execs, tx).await
         } 
     );
 
     loop {
+        // println!("waiting for port data...");
         let res = rx.recv().await;
+        // println!("port state change");
+
         match res {
             Some((closed, opened)) => {
                 // corout.abort();
