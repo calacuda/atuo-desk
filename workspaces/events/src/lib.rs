@@ -283,7 +283,7 @@ async fn make_adr(obj_path: &str) -> String {
 pub async fn blt_dev_conn(return_tx: UnboundedSender<Context>) {
     // println!("bluetooth dev conn");
     // let mut connected = old_connected.clone();
-    let mut interval = time::interval(Duration::from_millis(RESOLUTION * 2));
+    let mut interval = time::interval(Duration::from_millis(RESOLUTION * 3));
     let mut connected: HashSet<String> = HashSet::new();
     match get_blt_con(&mut connected).await {
         Ok(_) => {}  // context.keys().collect(),
@@ -422,7 +422,7 @@ fn make_port_contexts(closed: HashSet<Port>, opened: HashSet<Port>) -> Vec<Conte
 async fn get_tcp_conn(stop_execs: HashSet<String>, sender: UnboundedSender<(HashSet<Port>, HashSet<Port>)>) {
     let mut open_ports = get_tcp_ports(&stop_execs);
     // let mut interval = time::interval(Duration::from_millis(RESOLUTION/10));
-    let interval = std::time::Duration::from_millis(RESOLUTION/8);
+    let interval = std::time::Duration::from_millis(RESOLUTION/6);
 
     loop {
         // interval.tick().await;
