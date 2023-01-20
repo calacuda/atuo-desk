@@ -1,6 +1,8 @@
+use events::Context;
 use tokio::sync::mpsc::{Sender, Receiver};
 use tokio::process::Command;
 use tokio::task;
+use tokio::sync::mpsc::unbounded_channel;
 use std::collections::{HashMap, HashSet};
 use config::Hook;
 use config::OptGenRes;
@@ -133,7 +135,12 @@ async fn get_hook(_hook_db: &HookDB) -> String {
     String::new()
 }
 
-fn run_hooks(context: HashMap<String, String>, event_hook: &[HookID], all_hooks: &Hooks) {
+fn run_hooks(context: Option<HashMap<String, String>>, event_hook: &[HookID], all_hooks: &Hooks) {
+    let context = match context {
+        Some(con) => con,
+        None => return,
+    };
+
     let hooks = get_hooks(event_hook, all_hooks);
     // let mut cmds = Vec::new();
     println!("hooks: {:?}", hooks);
@@ -200,27 +207,56 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: Has
 
     // define the hook storage struct
     let mut hook_db = HookDB::new();
-    // stops bluetooth from registering devices twice.
-    let mut conn_bt_dev = HashSet::new();
     make_db_from_conf(config_hooks, &mut hook_db).await;
 
     // port change event
-    let mut ports = Box::pin(events::port_change(&stop_execs));
+    let (ports_tx, mut ports_rx) = unbounded_channel::<Vec<Context>>();
+    let mut _ports = task::spawn(
+        async move {
+            events::port_change(stop_execs, ports_tx)
+        }
+    );
 
     // bluetooth device connected event
-    let mut bluetooth_dev = Box::pin(events::blt_dev_conn(conn_bt_dev.clone()));
+    let (blt_tx, mut blt_rx) = unbounded_channel::<Context>();
+    let mut _bluetooth_dev = task::spawn( 
+        async move { 
+            events::blt_dev_conn(blt_tx) 
+        }
+    );
     
     // new usb dev event
-    let mut new_usb = Box::pin(events::new_usb());
+    let (usb_tx, mut usb_rx) = unbounded_channel::<Context>();
+    let mut _new_usb = task::spawn(
+        async move {
+            events::new_usb(usb_tx)
+        }
+    );
     
     // change in backlight event
-    let mut backlight = Box::pin(events::backlight_change());
+    let (bl_tx, mut bl_rx) = unbounded_channel::<Context>();
+    let mut _backlight = task::spawn(
+        async move {
+            events::backlight_change(bl_tx)
+        }
+    );
 
     // network (dis)connected event
-    let mut net_connected = Box::pin(events::network_connection());
+    let (net_con_tx, mut net_con_rx) = unbounded_channel::<Context>();
+    let mut _net_connected = task::spawn(
+        async move {
+            events::network_connection(net_con_tx)
+        }
+    );
 
     // changed wifi network event.
-    let mut network_change = Box::pin(events::wifi_change());
+    let (wifi_net_tx, mut wifi_net_rx) = unbounded_channel::<Context>();
+    let mut _network_change = task::spawn(
+        async move {
+            events::wifi_change(wifi_net_tx)
+        }
+    );
+
     
     loop {
         // async check for events and messages via thread based message passing
@@ -233,34 +269,28 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: Has
                     }
                 }
             },
-            context = &mut network_change => {
+            context = wifi_net_rx.recv() => {
                 run_hooks(context, &hook_db.wifi_net, &hook_db.hooks);
-                network_change = Box::pin(events::wifi_change());
-            }
-            context = &mut net_connected => {
+            },
+            context = net_con_rx.recv() => {
                 run_hooks(context, &hook_db.net_con, &hook_db.hooks);
-                net_connected = Box::pin(events::network_connection());
             },
             // context = events::file_exists() => run_hooks(context, &hook_db.test_file_exists, &hook_db.hooks).await,
-            context = &mut backlight => {
+            context = bl_rx.recv() => {
                 run_hooks(context, &hook_db.backlight, &hook_db.hooks);
-                backlight = Box::pin(events::backlight_change());
             },
-            context = &mut new_usb => {
+            context = usb_rx.recv() => {
                 run_hooks(context, &hook_db.usb_dev, &hook_db.hooks);
-                new_usb = Box::pin(events::new_usb());
             },
-            // context = events::discovered_blt() => run_hooks(context, &hook_db.bluetooth_dev, &hook_db.hooks).await,
-            (context, new_adrs) = &mut bluetooth_dev => {
-                conn_bt_dev.extend(new_adrs);
+            context = blt_rx.recv() => {
                 run_hooks(context, &hook_db.bluetooth_conn, &hook_db.hooks);
-                bluetooth_dev = Box::pin(events::blt_dev_conn(conn_bt_dev.clone()));
             },
-            contexts = &mut ports => {
-                for context in contexts {
-                    run_hooks(context, &hook_db.ports_change, &hook_db.hooks);
+            contexts = ports_rx.recv() => {
+                if let Some(contexts) = contexts {
+                    for context in contexts {
+                        run_hooks(Some(context), &hook_db.ports_change, &hook_db.hooks);
+                    }
                 }
-                ports = Box::pin(events::port_change(&stop_execs));
             }
         }
     }

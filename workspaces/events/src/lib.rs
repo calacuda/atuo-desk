@@ -49,20 +49,25 @@ struct Port {
 //     }
 // }
 
-pub async fn network_connection() -> Context {
+pub async fn network_connection(return_tx: UnboundedSender<Context>) {
     // println!("net connected");
 
-    let connected = check(None).await.is_ok();
-    let mut context = HashMap::new();
+    let mut connected = check(None).await.is_ok();
+    
     loop {
         sleep(Duration::from_millis(RESOLUTION * 2)).await;
         let tmp_connected = check(None).await.is_ok();
         if tmp_connected != connected {
+            let mut context = HashMap::new();
             context.insert(
                 "became".to_string(), 
                 if tmp_connected {"connected".to_string()} else {"disconnected".to_string()}
             );
-            return context;
+            match return_tx.send(context) {
+                Ok(_) => {},
+                Err(e) => println!("{e}\n[ERROR] could not send network connection information."),
+            };
+            connected = tmp_connected;
         }
 
     }
@@ -85,19 +90,21 @@ fn get_name() -> String {
     }
 }
 
-pub async fn wifi_change() -> Context {
+pub async fn wifi_change(return_tx: UnboundedSender<Context>) -> Context {
     // println!("wifi change");
-    let mut ssid = get_name();
+    let mut old_ssid = get_name();
     loop {
         sleep(Duration::from_millis(RESOLUTION)).await;
-        let tmp_ssid = get_name();
-        if tmp_ssid != ssid {
+        let new_ssid = get_name();
+        if new_ssid != old_ssid {
             let mut context = HashMap::new();
-            context.insert("old_network".to_string(), ssid);
-            context.insert("new_network".to_string(), tmp_ssid);
-            return context;
-        } else {
-            ssid = tmp_ssid;
+            context.insert("old_network".to_string(), old_ssid);
+            context.insert("new_network".to_string(), new_ssid.clone());
+            match return_tx.send(context) {
+                Ok(_) => {},
+                Err(e) => println!("{e}\n[ERROR] could not send updated wifi information context.")
+            } 
+            old_ssid = new_ssid;
         }
     }
 }
@@ -129,23 +136,26 @@ async fn get_bckl_perc(backlight_dir: &fs::DirEntry) -> Result<f64, std::io::Err
     Ok(current_brightness as f64/ max_brightness as f64)
 } 
 
-pub async fn backlight_change() -> Context {
+pub async fn backlight_change(return_tx: UnboundedSender<Context>) {
     // println!("backlight change");
 
     let backlight = match tokio::fs::read_dir("/sys/class/backlight/").await {
         Ok(mut dirs) => {
             match dirs.next_entry().await {
                 Ok(Some(dir)) => dir,
-                _ => return HashMap::new()
+                _ => {
+                    println!("[ERROR] could not find '/sys/class/backlight/'.");
+                    return;
+                } 
             }
         }
         Err(_) => {
             println!("[ERROR] back light event could not read \"/sys/class/backlight\" directory.");
-            return HashMap::new();
+            return;
         }
     };
 
-    let start_perc = get_bckl_perc(&backlight).await.unwrap();
+    let mut start_perc = get_bckl_perc(&backlight).await.unwrap();
     let mut interval = time::interval(Duration::from_millis(RESOLUTION));
 
     loop {
@@ -156,7 +166,11 @@ pub async fn backlight_change() -> Context {
             context.insert("old_backlight".to_string(), format!("{start_perc}"));
             context.insert("new_backlight".to_string(), format!("{cur_perc}"));
             // println!("returning context =>  {:#?}", context);
-            return context;
+            match return_tx.send(context) {
+                Ok(_) => {}
+                Err(e) => println!("{e}\n[ERROR] could not send backlight context."),
+            };
+            start_perc = cur_perc;
         }
     }
 }
@@ -185,7 +199,7 @@ async fn make_usb_context(new_devs: &[UsbDevice]) -> Context {
     context
 }
 
-pub async fn new_usb() -> Context {
+pub async fn new_usb(return_tx: UnboundedSender<Context>) {
     // println!("new usb");
     let mut interval = time::interval(Duration::from_millis(RESOLUTION));
     let devices = usb_enumeration::enumerate(None, None).into_iter().collect::<HashSet<UsbDevice>>();
@@ -196,7 +210,12 @@ pub async fn new_usb() -> Context {
         let tmp_devices = usb_enumeration::enumerate(None, None).into_iter().collect::<HashSet<UsbDevice>>();
         if tmp_devices != devices {
             let new_devices = tmp_devices.into_iter().filter(|dev| !devices.contains(dev));
-            return make_usb_context(&new_devices.collect::<Vec<UsbDevice>>()).await;
+            match return_tx.send(make_usb_context(&new_devices.collect::<Vec<UsbDevice>>()).await) {
+                Ok(_) => {}
+                Err(e) => {
+                    println!("{e}\n[ERROR] could not send usb context.")
+                }
+            };
         }
     }
 }
@@ -261,17 +280,31 @@ async fn make_adr(obj_path: &str) -> String {
     }
 }
 
-pub async fn blt_dev_conn(mut connected: HashSet<String>) -> (Context, HashSet<String>) {
+pub async fn blt_dev_conn(return_tx: UnboundedSender<Context>) {
     // println!("bluetooth dev conn");
     // let mut connected = old_connected.clone();
+    let mut connected: HashSet<String> = HashSet::new();
+    match get_blt_con(&mut connected).await {
+        Ok(_) => {}  // context.keys().collect(),
+        Err(e) => {
+            println!("{e}\n[ERROR] could not get connected bluetooth devices. is the adapter plugged in and powered on?");
+            return;
+        }
+    };
+
     let mut default_context = HashMap::new();
     default_context.insert("event".to_string(), "N/A".to_string());
     default_context.insert("device_adr".to_string(), "N/A".to_string());
     // println!("connected devices before => {:?}", connected);
-    (match get_blt_con(&mut connected).await {
-        Ok(context) => context,
-        Err(_) => default_context, 
-    }, connected)
+    loop {
+        match return_tx.send(match get_blt_con(&mut connected).await {
+            Ok(context) => context,
+            Err(_) => default_context.clone(), 
+        }) {
+            Ok(_) => {}
+            Err(e) => println!("{e}\n[ERROR] could not send bluetooth device connection data.")
+        }
+    }
 }
 
 /// returns open tcp ports
@@ -403,37 +436,30 @@ fn get_tcp_conn(stop_execs: HashSet<String>, sender: UnboundedSender<(HashSet<Po
     }
 }
 
-pub async fn port_change(stop_execs: &HashSet<String>) -> Vec<Context> {
+pub async fn port_change(stop_execs: HashSet<String>, return_tx: UnboundedSender<Vec<Context>>) -> Vec<Context> {
     // println!("port state change");
 
-    // let mut open_ports = get_tcp_ports(stop_execs).await;
-    // let mut interval = time::interval(Duration::from_millis(RESOLUTION));
     let (tx, mut rx) = unbounded_channel::<(HashSet<Port>, HashSet<Port>)>();
-    let tse = stop_execs.clone();
-    let corout = tokio::task::spawn(async move { get_tcp_conn(tse, tx) } );
+    // let tse = stop_execs.clone();
+    let _corout = tokio::task::spawn(
+        async move {
+            get_tcp_conn(stop_execs, tx)
+        } 
+    );
 
     loop {
         let res = rx.recv().await;
         match res {
             Some((closed, opened)) => {
-                corout.abort();
-                return make_port_contexts(closed, opened);
+                // corout.abort();
+                // return make_port_contexts(closed, opened);
+                match return_tx.send(make_port_contexts(closed, opened)) {
+                    Ok(_) => {}
+                    Err(_) => println!("[ERROR] could not send port change context.")
+                }
             }
             None => {}
         }
-        
-        // tokio::select! {
-        //     _ = interval.tick() => {},
-        //    res = rx.recv() => {
-        //         match res {
-        //             Some((closed, opened)) => {
-        //                 corout.abort();
-        //                 return make_port_contexts(closed, opened);
-        //             }
-        //             None => {}
-        //         }
-                
-        //     },
-        // }
     }
+    // corout.abort();
 }
