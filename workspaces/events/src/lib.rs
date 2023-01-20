@@ -275,7 +275,7 @@ pub async fn blt_dev_conn(mut connected: HashSet<String>) -> (Context, HashSet<S
 }
 
 /// returns open tcp ports
-async fn get_tcp_ports(stop_execs: &HashSet<String>) -> HashSet<Port> {
+fn get_tcp_ports(stop_execs: &HashSet<String>) -> HashSet<Port> {
     // get all processes
     let all_procs = procfs::process::all_processes().unwrap();
 
@@ -340,7 +340,7 @@ async fn get_tcp_ports(stop_execs: &HashSet<String>) -> HashSet<Port> {
     ports
 }
 
-async fn get_changed(old_ports: HashSet<Port>, new_ports: HashSet<Port>) -> (HashSet<Port>, HashSet<Port>) {
+fn get_changed(old_ports: HashSet<Port>, new_ports: HashSet<Port>) -> (HashSet<Port>, HashSet<Port>) {
     let old_diff = old_ports.difference(&new_ports).into_iter().map(|p| p.to_owned()).collect::<HashSet<Port>>();
     let new_diff = new_ports.difference(&old_ports).into_iter().map(|p| p.to_owned()).collect::<HashSet<Port>>();
     (old_diff, new_diff)
@@ -353,12 +353,12 @@ fn make_context(port: Port, became: &str) -> Context {
     context.insert("state".to_string(), port.state);
     context.insert("executable".to_string(), match port.exec {
         Some(exe) => exe,
-        None => "UNKNOWN".to_string(),
+        None => "".to_string(),
     });
     context.insert("inode".to_string(), format!("{}", port.inode));
     context.insert("l_addr".to_string(), match port.pid {
         Some(pid) => format!("{}", pid),
-        None => "UNKNOWN".to_string(),
+        None => "".to_string(),
     });
     context.insert("became".to_string(), became.to_string());
 
@@ -379,16 +379,21 @@ fn make_port_contexts(closed: HashSet<Port>, opened: HashSet<Port>) -> Vec<Conte
     contexts
 }
 
-async fn get_tcp_conn(stop_execs: HashSet<String>, sender: UnboundedSender<(HashSet<Port>, HashSet<Port>)>) {
-    let mut open_ports = get_tcp_ports(&stop_execs).await;
-    let mut interval = time::interval(Duration::from_millis(RESOLUTION/10));
+fn get_tcp_conn(stop_execs: HashSet<String>, sender: UnboundedSender<(HashSet<Port>, HashSet<Port>)>) {
+    let mut open_ports = get_tcp_ports(&stop_execs);
+    // let mut interval = time::interval(Duration::from_millis(RESOLUTION/10));
+    let interval = std::time::Duration::from_millis(RESOLUTION/10);
 
     loop {
-        interval.tick().await;
-        let new_open_ports = get_tcp_ports(&stop_execs).await;
+        // interval.tick().await;
+        std::thread::sleep(interval);
+        let new_open_ports = get_tcp_ports(&stop_execs);
 
         if open_ports != new_open_ports {
-            let _ = sender.send(get_changed(open_ports, new_open_ports).await);
+            match sender.send(get_changed(open_ports, new_open_ports)) {
+                Ok(_) => {}
+                Err(_) => {println!("could not send port status change to ")}
+            }
             break;
             // let (closed, opened) = get_changed(open_ports, new_open_ports).await;
             // return make_port_contexts(closed, opened).await;
@@ -402,24 +407,33 @@ pub async fn port_change(stop_execs: &HashSet<String>) -> Vec<Context> {
     // println!("port state change");
 
     // let mut open_ports = get_tcp_ports(stop_execs).await;
-    let mut interval = time::interval(Duration::from_millis(RESOLUTION));
+    // let mut interval = time::interval(Duration::from_millis(RESOLUTION));
     let (tx, mut rx) = unbounded_channel::<(HashSet<Port>, HashSet<Port>)>();
-    let corout = tokio::task::spawn(get_tcp_conn(stop_execs.clone(), tx));
+    let tse = stop_execs.clone();
+    let corout = tokio::task::spawn(async move { get_tcp_conn(tse, tx) } );
 
     loop {
-        
-        tokio::select! {
-            _ = interval.tick() => {},
-           res = rx.recv() => {
-                match res {
-                    Some((closed, opened)) => {
-                        corout.abort();
-                        return make_port_contexts(closed, opened);
-                    }
-                    None => {}
-                }
-                
-            },
+        let res = rx.recv().await;
+        match res {
+            Some((closed, opened)) => {
+                corout.abort();
+                return make_port_contexts(closed, opened);
+            }
+            None => {}
         }
+        
+        // tokio::select! {
+        //     _ = interval.tick() => {},
+        //    res = rx.recv() => {
+        //         match res {
+        //             Some((closed, opened)) => {
+        //                 corout.abort();
+        //                 return make_port_contexts(closed, opened);
+        //             }
+        //             None => {}
+        //         }
+                
+        //     },
+        // }
     }
 }

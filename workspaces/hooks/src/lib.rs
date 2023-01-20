@@ -1,5 +1,6 @@
 use tokio::sync::mpsc::{Sender, Receiver};
 use tokio::process::Command;
+// use tokio::task;
 use std::collections::{HashMap, HashSet};
 use config::Hook;
 use config::OptGenRes;
@@ -190,17 +191,35 @@ pub async fn hooks_switch(
 
 /// starts asynchronously checking for events and then triggers hooks.
 pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: HashSet<String>, config_hooks: Vec<Hook>) {
+    // FIXME: old variable don't get cleared till they go out of scope. I suspect that the old async func calls 
+    // that get checked in the loop are cluttering the memory and thats whats causing the crashing
+    // TODO: figure out a new way to handle the async polling od the functions.
+    //       ideas:
+    //          - use threads and use message passing to get data out of the threads. then async wait on the receiver.
+    //          - 🤷 IDK 
+
     // define the hook storage struct
     let mut hook_db = HookDB::new();
     // stops bluetooth from registering devices twice.
     let mut conn_bt_dev = HashSet::new();
     make_db_from_conf(config_hooks, &mut hook_db).await;
 
+    // port change event
     let mut ports = Box::pin(events::port_change(&stop_execs));
+
+    // bluetooth device connected event
     let mut bluetooth_dev = Box::pin(events::blt_dev_conn(conn_bt_dev.clone()));
+    
+    // new usb dev event
     let mut new_usb = Box::pin(events::new_usb());
+    
+    // change in backlight event
     let mut backlight = Box::pin(events::backlight_change());
+
+    // network (dis)connected event
     let mut net_connected = Box::pin(events::network_connection());
+
+    // changed wifi network event.
     let mut network_change = Box::pin(events::wifi_change());
     
     loop {
