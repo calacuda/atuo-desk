@@ -7,11 +7,11 @@ use xdotool::window::get_window_pid;
 use std::{thread, time};
 use procfs::process;
 use std::io::{Read, Write};
-use common::open_program;
-use wm_lib;
-use wm_lib::{Program, DesktopLayout};
+use crate::common::open_program;
+use crate::wm_lib;
+use crate::wm_lib::{Program, DesktopLayout};
 use freedesktop_entry_parser::parse_entry;
-use config::OptGenRes;
+use crate::config::OptGenRes;
 
 fn remove_present(progs: &Vec<Program>, execs: &mut Vec<String>) -> Vec<Program> {
     let mut programs = Vec::new();

@@ -3,49 +3,43 @@ name = "auto-desk"
 version = "0.5.0"
 edition = "2021"
 
-[[bin]]
-name = "desktop-automater"
-path = "src/server/main.rs"
+# [[bin]]
+# name = "desktop-automater"
+# path = "src/bin/server.rs"
 
-[[bin]]
-name = "auto-desk"
-path = "src/client/main.rs"
-
-[workspace]
-members = [
-    "workspaces/bspwm",
-    "workspaces/qtile",
-    "workspaces/leftwm",
-    "workspaces/common",
-    "workspaces/wm-lib",
-    "workspaces/hooks",
-    "workspaces/events",
-    "workspaces/config",
-]
+# [[bin]]
+# name = "auto-desk"
+# path = "src/bin/client.rs"
 
 [features]
 default = ["common", "hooks", "all_wms"]
-bspwm = ["dep:wm_lib"]
-qtile = ["dep:wm_lib"]
-leftwm = ["dep:wm_lib"]
-common = ["systemctl", "media", "dep:common"]
-systemctl = ["dep:common", "common/systemctl"]
-media = [ "dep:common", "common/media"]
-hooks = ["dep:hooks", "dep:events", "tokio/sync"]
-
+common = ["systemctl", "media"]
+systemctl = []
+media = []
+qtile = []
+bspwm = []
+leftwm = []
 all_wms = ["qtile", "bspwm", "leftwm"]
+hooks = ["tokio/sync"]
 
 [dependencies]
 clap = "3.2.8"
 shellexpand = "2.1.0"
 sysinfo = "0.27.2"
-config = { path = "workspaces/config"}
-common = { path = "workspaces/common", optional=true}
-qtile = { path = "workspaces/qtile"}  # , optional=true }
-bspwm = { path = "workspaces/bspwm"}  # , optional=true }
-leftwm = { path = "workspaces/leftwm"}  #, optional=true }
-wm_lib = { path = "workspaces/wm-lib", optional=true }
-hooks = { path = "workspaces/hooks", optional=true }
-events = { path = "workspaces/events", optional=true }
-tokio = {version = "1.22", default-features = false, features = ["io-util", "rt-multi-thread"]}
-futures = {version = "0.3.25", default-features = false, features = ["async-await"]}
+tokio = { version = "1.22", default-features = false, features = ["io-util", "rt-multi-thread", "time", "fs", "macros", "process"] }
+futures = { version = "0.3.25", default-features = false, features = ["async-await"] }
+xdg = "2.2.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.8.24"
+iw = "0.0.1"
+online = { version = "4.0.0",  default-features = false, features = ["tokio-runtime"] }
+usb_enumeration = "0.1.2"
+# futures = {version = "0.3.24", default-features = false, features = ["std"]}
+btleplug = "0.10"
+procfs = "0.14.1"
+configparser = "3.0.0"
+toml = "0.5"
+rdev = "0.5.1"
+xdotool = "0.0.2"
+freedesktop_entry_parser = "1.3.0"

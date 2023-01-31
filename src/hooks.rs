@@ -4,8 +4,10 @@ use tokio::process::Command;
 use tokio::task;
 use tokio::sync::mpsc::unbounded_channel;
 use std::collections::{HashMap, HashSet};
-use config::Hook;
-use config::OptGenRes;
+use crate::config::Hook;
+use crate::config::OptGenRes;
+use crate::events;
+use crate::config;
 
 pub type HookID = u16;
 pub type Hooks = HashMap<HookID, Hook>;
@@ -204,7 +206,7 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: Has
     //       ideas:
     //          - use threads and use message passing to get data out of the threads. then async wait on the receiver.
     //          - 🤷 IDK 
-
+    
     // define the hook storage struct
     let mut hook_db = HookDB::new();
     make_db_from_conf(config_hooks, &mut hook_db).await;

@@ -1,7 +1,7 @@
 use rdev::{simulate, EventType, Key, SimulateError};
 use std::process::{Command, Stdio};
 use std::{thread, time};
-use config::OptGenRes;
+use crate::config::OptGenRes;
 
 mod backlight;
 mod media;
