@@ -7,9 +7,9 @@ use xdg::BaseDirectories;
 // use std::io::prelude::*;
 use tokio::fs::write;
 
-use common;
-use config::OptGenRes;
-use wm_lib;
+use crate::common;
+use crate::config::OptGenRes;
+use crate::wm_lib;
 
 // const NULL: char = 0 as char;
 
@@ -20,7 +20,7 @@ use wm_lib;
 // type Programs = Vec<Exe>;
 // type Rules = HashMap<WMClass, Vec<Desktop>>;
 
-pub async fn leftwm_switch(cmd: &str, args: &str, _spath: &str) -> OptGenRes {
+pub async fn leftwm_switch(cmd: &str, args: &str) -> OptGenRes {
     match cmd {
         "move-to" => Some((move_to(args).await, None)),
         "close-focused" => Some((close_focused().await, None)),

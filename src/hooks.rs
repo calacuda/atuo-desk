@@ -4,8 +4,10 @@ use tokio::process::Command;
 use tokio::task;
 use tokio::sync::mpsc::unbounded_channel;
 use std::collections::{HashMap, HashSet};
-use config::Hook;
-use config::OptGenRes;
+use crate::config::Hook;
+use crate::config::OptGenRes;
+use crate::events;
+use crate::config;
 
 pub type HookID = u16;
 pub type Hooks = HashMap<HookID, Hook>;
@@ -204,7 +206,7 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: Has
     //       ideas:
     //          - use threads and use message passing to get data out of the threads. then async wait on the receiver.
     //          - 🤷 IDK 
-
+    
     // define the hook storage struct
     let mut hook_db = HookDB::new();
     make_db_from_conf(config_hooks, &mut hook_db).await;
@@ -213,7 +215,7 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: Has
     let (ports_tx, mut ports_rx) = unbounded_channel::<Vec<Context>>();
     let mut _ports = task::spawn(
         async move {
-            events::port_change(stop_execs, ports_tx)
+            events::port_change(stop_execs, ports_tx).await
         }
     );
 
@@ -221,7 +223,7 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: Has
     let (blt_tx, mut blt_rx) = unbounded_channel::<Context>();
     let mut _bluetooth_dev = task::spawn( 
         async move { 
-            events::blt_dev_conn(blt_tx) 
+            events::blt_dev_conn(blt_tx).await
         }
     );
     
@@ -229,7 +231,7 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: Has
     let (usb_tx, mut usb_rx) = unbounded_channel::<Context>();
     let mut _new_usb = task::spawn(
         async move {
-            events::new_usb(usb_tx)
+            events::new_usb(usb_tx).await
         }
     );
     
@@ -237,7 +239,7 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: Has
     let (bl_tx, mut bl_rx) = unbounded_channel::<Context>();
     let mut _backlight = task::spawn(
         async move {
-            events::backlight_change(bl_tx)
+            events::backlight_change(bl_tx).await
         }
     );
 
@@ -245,7 +247,7 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: Has
     let (net_con_tx, mut net_con_rx) = unbounded_channel::<Context>();
     let mut _net_connected = task::spawn(
         async move {
-            events::network_connection(net_con_tx)
+            events::network_connection(net_con_tx).await
         }
     );
 
@@ -253,7 +255,7 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: Has
     let (wifi_net_tx, mut wifi_net_rx) = unbounded_channel::<Context>();
     let mut _network_change = task::spawn(
         async move {
-            events::wifi_change(wifi_net_tx)
+            events::wifi_change(wifi_net_tx).await
         }
     );
 

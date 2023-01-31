@@ -1,10 +1,19 @@
-#![warn(clippy::all)]
-#![feature(type_alias_impl_trait)]
 use tokio::net::{UnixListener, UnixStream};
 use tokio::task;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use futures::future::BoxFuture;
-use config::{GenericRes, OptGenRes};
+// use crate::config::{GenericRes, OptGenRes};
+// use crate::common;
+// use crate::qtile;
+// use crate::bspwm;
+// use crate::leftwm;
+use crate::config::{GenericRes, OptGenRes};
+use crate::config;
+use crate::common;
+use crate::qtile;
+use crate::bspwm;
+use crate::leftwm;
+use crate::hooks;
 use sysinfo::{ProcessExt, System, SystemExt};
 
 enum WindowManager {
@@ -83,7 +92,8 @@ async fn switch_board<'t>(
         }
         WindowManager::LeftWM => {
             #[cfg(feature = "leftwm")]
-            futures.push(Box::pin(leftwm::leftwm_switch(cmd, args, spath)));
+            futures.push(Box::pin(leftwm::leftwm_switch(cmd, args)));
+            // futures.push(Box::pin(leftwm::leftwm_switch(cmd, args, spath)));
         }
         WindowManager::Headless |
         WindowManager::NoWM => {}
@@ -294,14 +304,13 @@ async fn recv_loop(configs: config::Config) -> std::io::Result<()> {
     Ok(())
 }
 
-#[tokio::main(flavor = "multi_thread", worker_threads = 10)]
-async fn main() -> Result<(), ()> {
+pub async fn server_start() {
     let configs = match config::get_configs() {
         Ok(configs) => configs,
         Err(e) => {
             println!("[ERROR] could not load configs. reason: {e}");
             println!("now exiting");
-            return Err(());
+            return;
         }
     };
     let prog_so = &configs.server.listen_socket;
@@ -324,6 +333,4 @@ async fn main() -> Result<(), ()> {
         Ok(_) => {}
         Err(e) => println!("[ERROR] {}", e),
     }
-    // println!("Goodbye!");
-    Ok(())
 }

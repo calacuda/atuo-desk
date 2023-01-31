@@ -1,5 +1,5 @@
-#![deny(clippy::all)]
-use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
+// #![deny(clippy::all)]
+use clap::ArgMatches;
 use std::io::Read;
 use std::io::Write;
 use std::net::Shutdown;
@@ -7,9 +7,11 @@ use std::os::unix::net::UnixStream;
 use std::path::Path;
 use std::process::exit;
 use std::str;
+use crate::config;
 
-fn main() {
-    let args = get_args();
+
+pub fn handle_args(args: ArgMatches) {
+    // let args = get_args();
     let subargs = args.subcommand().unwrap();
     let configs = match config::get_configs() {
         Ok(configs) => configs,
@@ -116,48 +118,6 @@ fn handle_launch(args: ArgMatches, server_soc: String) {
     } else {
         send_data(format!("open-here {}", program), server_soc)
     };
-}
-
-fn get_args() -> ArgMatches {
-    App::new("auto-desk")
-        .version("0.5.0")
-        .author("Calacuda. <https://github.com/calacuda>")
-        .about("used to control a linux desktop running BSPWM.")
-        .setting(AppSettings::SubcommandRequiredElseHelp)
-        .subcommand(
-            SubCommand::with_name("layout")
-                .help("configure the system with a layout.yaml file")
-                .arg(
-                    Arg::new("layout")
-                        // .short('l')
-                        // .long("layout")
-                        .value_name("LAYOUT.yml")
-                        .help("the yaml file describing the desiered desktop configuration.")
-                        .takes_value(true)
-                        .required(true),
-                ),
-        )
-        .subcommand(
-            SubCommand::with_name("launch")
-                .help("launch a program")
-                .arg(
-                    Arg::new("desktop")
-                        .short('d')
-                        .long("desktop")
-                        .value_name("TARGET-DESKTOP")
-                        .help("The desktop to launch the program on")
-                        .takes_value(true)
-                        .required(false),
-                )
-                .arg(
-                    Arg::new("program")
-                        .value_name("PROGRAM")
-                        .help("The program to be launched")
-                        .takes_value(true)
-                        .required(true),
-                ),
-        )
-        .get_matches()
 }
 
 // fn find_layout(fname: String) -> String {

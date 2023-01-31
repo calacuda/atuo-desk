@@ -3,12 +3,12 @@ use std::io::Read;
 use std::io::Write;
 use std::net::Shutdown;
 use std::os::unix::net::UnixStream;
-use wm_lib;
+use crate::wm_lib;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use tokio::time::{sleep, Duration};
-use common;
-use config::OptGenRes;
+use crate::common;
+use crate::config::OptGenRes;
 
 const NULL: char = 0 as char;
 
