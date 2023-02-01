@@ -1,24 +1,12 @@
 use std::path::PathBuf;
 use std::{thread, time};
 use tokio::task;
-// use tokio::time::{sleep, Duration};
-// use std::fs::OpenOptions;
 use xdg::BaseDirectories;
-// use std::io::prelude::*;
 use tokio::fs::write;
 
 use crate::common;
 use crate::config::OptGenRes;
 use crate::wm_lib;
-
-// const NULL: char = 0 as char;
-
-// type WMClass = String;
-// type Desktop = String;
-// type Desktops = HashMap<Desktop, bool>;
-// type Exe = String;
-// type Programs = Vec<Exe>;
-// type Rules = HashMap<WMClass, Vec<Desktop>>;
 
 pub async fn leftwm_switch(cmd: &str, args: &str) -> OptGenRes {
     match cmd {
@@ -173,7 +161,7 @@ async fn open_on_desktop(args: &str) -> u8 {
         }
     };
 
-    // TODO: add a way to specify workspace.
+    // TODO: add a way to specify workspace (ie. which monitor should go to the tag).
     let tag_switch_ec = focus_on(&desktop).await; // send_cmd(&format!("SendWorkspaceToTag 0 {desktop}")).await;
     if tag_switch_ec > 0 {
         return tag_switch_ec;

@@ -7,7 +7,11 @@ use std::os::unix::net::UnixStream;
 use std::path::Path;
 use std::process::exit;
 use std::str;
+use std::fs::{remove_file, remove_dir_all};
 use crate::config;
+
+
+type ErrorCode = u8;
 
 
 pub fn handle_args(args: ArgMatches) {
@@ -29,7 +33,59 @@ pub fn handle_args(args: ArgMatches) {
     }
 }
 
-fn send_data(data: String, server_soc: String) -> Vec<u8> {
+/// stops the running server and cleans up the file system
+pub async fn stop_server() {
+    let configs = match config::get_configs() {
+        Ok(configs) => configs,
+        Err(e) => {
+            println!("{}", e);
+            return;
+        }
+    };
+
+    let server_soc: String = configs.server.listen_socket;
+
+    let _ = kill_server(&server_soc);
+    match clean_fs(&server_soc) {
+        Ok(_) => {},
+        Err(failed_files) => println!("failed to delete the files:\n - {}",failed_files.join("\n - ")),
+    }
+}
+
+fn kill_server(server_soc: &str) -> Result<String, String> {
+    // send kill signal to unix socket server located at server_soc.
+    // TODO: implement the SERVER-EXIT command.
+    let (ec, res_text) = send_data(String::from("SERVER-EXIT"), server_soc);
+    if ec > 0 {
+        Err(res_text)
+    } else {
+        Ok(res_text)
+    }
+}
+
+fn clean_fs(server_soc: &str) -> Result<(), Vec<String>> {
+    let f_s = [server_soc]; 
+    let mut e_s = Vec::new();
+
+    // remove the runtime dir which stores named pipes and such.
+    let _ = remove_dir_all(config::get_pipe_d());
+
+    // remove all files outside the runtime dir. if it can't rm the file for what ever 
+    // reason, it will add the files it can't remove to a vector.
+    for f in f_s {
+        if let Err(e) = remove_file(f) {
+            e_s.push(String::from(f));
+        };
+    }
+
+    if e_s.is_empty() {
+        Ok(())
+    } else {
+        Err(e_s)
+    }
+}
+
+fn send_data(data: String, server_soc: &str) -> (ErrorCode, String) {
     let mut stream = match UnixStream::connect(&server_soc) {
         Ok(stream) => stream,
         Err(_) => {
@@ -69,8 +125,13 @@ fn send_data(data: String, server_soc: String) -> Vec<u8> {
         }
     };
 
-    let ec = response_bytes[0];
-    let response = &response_bytes[1..];
+    let (ec, response) = if !response_bytes.is_empty() {
+        let ec = response_bytes[0];
+        let response = &response_bytes[1..];
+        (ec, response)
+    } else {
+        return (0, String::new())
+    };
 
     if ec > 0 {
         // print!("{}", 7 as char);
@@ -79,16 +140,20 @@ fn send_data(data: String, server_soc: String) -> Vec<u8> {
         println!("[SUCCESS] responce: ")
     }
 
-    match str::from_utf8(response) {
-        Ok(text) => println!("{}", text),
-        Err(_e) => {
+    let res_text = match str::from_utf8(response) {
+        Ok(text) => {
+            println!("{}", text);
+            text.to_owned()
+        }
+        Err(e) => {
             println!("responce had invalid UTF-8, could not parse.");
             println!("raw bytes:");
             println!("{:?}", response);
+            format!("{e}")
         }
     };
 
-    response_bytes
+    (ec, res_text)
 }
 
 fn handle_layout(args: ArgMatches, server_soc: String) {
@@ -99,24 +164,24 @@ fn handle_layout(args: ArgMatches, server_soc: String) {
         Path::new(&layout_path).to_str().unwrap()
     );
 
-    let _response_bytes = send_data(format!("load-layout {}", layout_path), server_soc);
+    let (_ec, _response_bytes) = send_data(format!("load-layout {}", layout_path), &server_soc);
 }
 
 fn handle_launch(args: ArgMatches, server_soc: String) {
     let program = args.get_one::<String>("program").unwrap().clone();
     println!("launching {}...", program);
 
-    let _response_bytes = if args.contains_id("desktop") {
+    let (_ec, _response_bytes) = if args.contains_id("desktop") {
         send_data(
             format!(
                 "open-at {} {}",
                 program,
                 args.get_one::<String>("desktop").unwrap()
             ),
-            server_soc,
+            &server_soc,
         )
     } else {
-        send_data(format!("open-here {}", program), server_soc)
+        send_data(format!("open-here {}", program), &server_soc)
     };
 }
 

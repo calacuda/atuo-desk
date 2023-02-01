@@ -11,12 +11,15 @@ async fn main() {
     
     match &args.subcommand() {
         Some(("start", _)) => server::server_start().await,
+        Some(("stop", _)) => client::stop_server().await,
         Some((_, _)) => client::handle_args(args),
         None => {
             println!("no command specified.");
             std::process::exit(1);
         }
     }
+
+    std::process::exit(0);
 }
 
 fn get_args() -> ArgMatches {
@@ -61,6 +64,10 @@ fn get_args() -> ArgMatches {
         .subcommand(
             SubCommand::with_name("start")
                 .help("starts the server")
+        )
+        .subcommand(
+            SubCommand::with_name("stop")
+                .help("stops the server and cleans up the file system.")
         )
         .get_matches()
 }

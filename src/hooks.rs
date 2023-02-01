@@ -8,6 +8,7 @@ use crate::config::Hook;
 use crate::config::OptGenRes;
 use crate::events;
 use crate::config;
+use crate::msgs;
 
 pub type HookID = u16;
 pub type Hooks = HashMap<HookID, Hook>;
@@ -88,6 +89,7 @@ impl HookDB {
 #[derive(Clone)]
 pub struct HookData {
     pub send: Sender<HookDB>,
+    pub cmd: Sender<msgs::Hook>,
     pub db: HookDB,
 }
 
@@ -199,7 +201,7 @@ pub async fn hooks_switch(
 }
 
 /// starts asynchronously checking for events and then triggers hooks.
-pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: HashSet<String>, config_hooks: Vec<Hook>) {
+pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, cmd_passer: &mut Receiver<msgs::Hook>, stop_execs: HashSet<String>, config_hooks: Vec<Hook>) {
     // FIXME: old variable don't get cleared till they go out of scope. I suspect that the old async func calls 
     // that get checked in the loop are cluttering the memory and thats whats causing the crashing
     // TODO: figure out a new way to handle the async polling od the functions.
@@ -213,7 +215,7 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: Has
 
     // port change event
     let (ports_tx, mut ports_rx) = unbounded_channel::<Vec<Context>>();
-    let mut _ports = task::spawn(
+    let ports = task::spawn(
         async move {
             events::port_change(stop_execs, ports_tx).await
         }
@@ -221,7 +223,7 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: Has
 
     // bluetooth device connected event
     let (blt_tx, mut blt_rx) = unbounded_channel::<Context>();
-    let mut _bluetooth_dev = task::spawn( 
+    let bluetooth_dev = task::spawn( 
         async move { 
             events::blt_dev_conn(blt_tx).await
         }
@@ -229,7 +231,7 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: Has
     
     // new usb dev event
     let (usb_tx, mut usb_rx) = unbounded_channel::<Context>();
-    let mut _new_usb = task::spawn(
+    let new_usb = task::spawn(
         async move {
             events::new_usb(usb_tx).await
         }
@@ -237,7 +239,7 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: Has
     
     // change in backlight event
     let (bl_tx, mut bl_rx) = unbounded_channel::<Context>();
-    let mut _backlight = task::spawn(
+    let backlight = task::spawn(
         async move {
             events::backlight_change(bl_tx).await
         }
@@ -245,7 +247,7 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: Has
 
     // network (dis)connected event
     let (net_con_tx, mut net_con_rx) = unbounded_channel::<Context>();
-    let mut _net_connected = task::spawn(
+    let net_connected = task::spawn(
         async move {
             events::network_connection(net_con_tx).await
         }
@@ -253,7 +255,7 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: Has
 
     // changed wifi network event.
     let (wifi_net_tx, mut wifi_net_rx) = unbounded_channel::<Context>();
-    let mut _network_change = task::spawn(
+    let network_change = task::spawn(
         async move {
             events::wifi_change(wifi_net_tx).await
         }
@@ -263,6 +265,11 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: Has
     loop {
         // async check for events and messages via thread based message passing
         tokio::select! {
+            Some(cmd) = cmd_passer.recv() => {
+                match cmd {
+                    msgs::Hook::Exit => break,
+                }
+            }
             message = hook_db_rx.recv() => {
                 match message {
                     Some(tmp_hook_db) => hook_db.update(tmp_hook_db),
@@ -296,5 +303,11 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, stop_execs: Has
                 }
             }
         }
+    }
+
+    // kill the event listners
+    for event_listener in [ports, bluetooth_dev, new_usb, backlight, net_connected, network_change] {
+        event_listener.abort();
+        println!("{:?}", event_listener);
     }
 }

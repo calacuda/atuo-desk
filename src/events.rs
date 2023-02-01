@@ -1,10 +1,15 @@
 use procfs::process::{FDTarget, Stat};
+// use tokio::process::Command;
 use tokio::time::{sleep, Duration};
+use tokio::io::{BufReader, AsyncBufReadExt, AsyncWriteExt};
+// use tokio::fs::File;
+// use tokio::io::AsyncReadExt;
 // use tokio::sync::mpsc::{Sender, Receiver, channel};
 use tokio::sync::mpsc::{UnboundedSender, unbounded_channel};
 use usb_enumeration::UsbDevice;
 use std::collections::HashMap;
 use std::collections::HashSet;
+// use std::io::Read;
 use online::tokio::check;
 use tokio::fs;
 use tokio::time;
@@ -14,6 +19,8 @@ use btleplug::platform::{Adapter, Manager};
 use futures::stream::StreamExt;
 use std::error::Error;
 use iw::interfaces;
+use unix_named_pipe as unp;
+use crate::config;
 // use notify::{Event, RecommendedWatcher, PollWatcher, RecursiveMode, Watcher, Config};
 // use futures::{
 //     channel::mpsc::{channel, Receiver},
@@ -90,7 +97,7 @@ fn get_name() -> String {
     }
 }
 
-pub async fn wifi_change(return_tx: UnboundedSender<Context>) -> Context {
+pub async fn wifi_change(return_tx: UnboundedSender<Context>) {
     // println!("wifi change");
     let mut old_ssid = get_name();
     loop {
@@ -441,31 +448,75 @@ async fn get_tcp_conn(stop_execs: HashSet<String>, sender: UnboundedSender<(Hash
     }
 }
 
-pub async fn port_change(stop_execs: HashSet<String>, return_tx: UnboundedSender<Vec<Context>>) -> Vec<Context> {
-    let (tx, mut rx) = unbounded_channel::<(HashSet<Port>, HashSet<Port>)>();
-    // let tse = stop_execs.clone();
-    let _corout = tokio::task::spawn(
-        async move {
-            get_tcp_conn(stop_execs, tx).await
-        } 
-    );
+// pub async fn port_change(stop_execs: HashSet<String>, return_tx: UnboundedSender<Vec<Context>>) {
+//     let mut tcpdump = match Command::new("sh")
+//         .arg("-c")
+//         .arg("doas tcpdump -n 'not icmp and not arp and (tcp[tcpflags] == tcp-syn or tcp[tcpflags] == tcp-ack or tcp[13] = 18)' 2> /dev/null")
+//         .stdout(std::process::Stdio::piped())
+//         .spawn() {
+//         Ok(child_proc) => child_proc,
+//         Err(e) => {
+//             println!("Cannot run program tcpdump: {e}");
+//             return;
+//         }
+//     };
+
+//     loop {
+//         match tcpdump.stdout.as_mut() {
+//             Some(out) => { 
+//                 let mut buf_reader = BufReader::new(out).lines();
+//                 while let Ok(line) = buf_reader.next_line().await {
+//                     match line {
+//                         Some(l) => {
+//                             println!("{l}");
+//                             // parse and send line.
+//                         }
+//                         None => {},
+//                     };
+//                 }
+//                 println!("after while loop");
+//             }
+//             None => break,
+//         }
+//     }
+//     println!("end of function")
+// }
+
+pub async fn port_change(stop_execs: HashSet<String>, return_tx: UnboundedSender<Vec<Context>>) {
+    // let (tx, mut rx) = unbounded_channel::<(HashSet<Port>, HashSet<Port>)>();
+    // // let tse = stop_execs.clone();
+    // let _corout = tokio::task::spawn(
+    //     async move {
+    //         get_tcp_conn(stop_execs, tx).await
+    //     } 
+    // );
+    let pipe_f = format!("{}/auto-desk.pipe", config::get_pipe_d());
 
     loop {
-        // println!("waiting for port data...");
-        let res = rx.recv().await;
-        // println!("port state change");
+        match tokio::fs::File::open(pipe_f.as_str() ).await {
+            Ok(f) => {
+                let mut ports = BufReader::new(f).lines();
 
-        match res {
-            Some((closed, opened)) => {
-                // corout.abort();
-                // return make_port_contexts(closed, opened);
-                match return_tx.send(make_port_contexts(closed, opened)) {
-                    Ok(_) => {}
-                    Err(_) => println!("[ERROR] could not send port change context.")
+                while let Ok(Some(port)) = ports.next_line().await {
+                    println!("contents: {:?}\n",  port);
+                    // parse port and send port data.
+                }
+
+                // f.flush();
+            },
+            Err(_) => {
+                // println!("could not read from pipe_file. got error {e}");
+                match unp::create(&pipe_f, Some(0o666)) {
+                    Ok(_) => {},
+                    Err(e) => {
+                        println!("error creating named pipe. got error; {e}");
+                        // return;
+                    }
                 }
             }
-            None => {}
         }
+        // sleep(Duration::from_millis(100)).await;
     }
+    // println!("end of function")
     // corout.abort();
 }

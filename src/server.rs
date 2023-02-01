@@ -1,12 +1,9 @@
+use std::fs::create_dir;
+use sysinfo::{ProcessExt, System, SystemExt};
 use tokio::net::{UnixListener, UnixStream};
 use tokio::task;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use futures::future::BoxFuture;
-// use crate::config::{GenericRes, OptGenRes};
-// use crate::common;
-// use crate::qtile;
-// use crate::bspwm;
-// use crate::leftwm;
 use crate::config::{GenericRes, OptGenRes};
 use crate::config;
 use crate::common;
@@ -14,7 +11,8 @@ use crate::qtile;
 use crate::bspwm;
 use crate::leftwm;
 use crate::hooks;
-use sysinfo::{ProcessExt, System, SystemExt};
+use crate::msgs;
+
 
 enum WindowManager {
     Qtile,
@@ -127,18 +125,14 @@ fn split_cmd(command: &str) -> (String, String){
 
 // #[cfg(not(feature = "qtile"))]
 async fn handle_client_gen(
+    cmd: String,
+    args: String,
     wm: &WindowManager,
     hooks: &mut Option<hooks::HookData>, 
     // _config_hooks: &config::Hooks, 
     mut stream: UnixStream, 
     spath: &str
 ) {
-    // TODO: implement hooks for this and switch board
-    let command = read_command(&mut stream).await;
-    // println!("{}", command);
-    let (cmd, args) = split_cmd(&command);
-
-
     // handle comand here
     let (ec, message) = switch_board(wm, &cmd, &args, spath, hooks).await;
     // let mesg = match message {
@@ -151,16 +145,14 @@ async fn handle_client_gen(
 
 // #[cfg(feature = "qtile")]
 async fn handle_client_qtile(
+    cmd: String,
+    args: String,
     wm: &WindowManager,
     mut stream: UnixStream, 
     layout: &mut Option<qtile::QtileCmdData>, 
     hook_data: &mut Option<hooks::HookData>,
     wm_socket: &str,
 ) -> Option<qtile::QtileCmdData> {
-    let command = read_command(&mut stream).await;
-    // println!("command: {}", command);
-    let (cmd, args) = split_cmd(&command);
-
     // handle comand here
     match qtile::qtile_api(&cmd, &args, layout).await {
         Some(qtile::QtileAPI::Layout(new_layout)) => {
@@ -241,28 +233,39 @@ async fn recv_loop(configs: config::Config) -> std::io::Result<()> {
     let listener = UnixListener::bind(program_socket)?;
     // #[cfg(feature = "qtile")]  // make this compile for all features?
     let mut layout: Option<qtile::QtileCmdData> = None;
-    let mut hooks: Option<hooks::HookData> = if Some(true) == configs.hooks.listen && cfg!(feature = "hooks") {
+    let (mut hooks, hook_checking) = if Some(true) == configs.hooks.listen && cfg!(feature = "hooks") {
         let (control_tx, mut control_rx) = tokio::sync::mpsc::channel::<hooks::HookDB>(1);
+        let (cmd_tx, mut cmd_rx) = tokio::sync::mpsc::channel::<msgs::Hook>(1);
         let stop_exec = configs.hooks.exec_ignore.clone();
         let conf_hooks = configs.hooks.hooks.clone();
-        task::spawn( async move {
-            hooks::check_even_hooks(&mut control_rx, stop_exec, conf_hooks).await;
+        // make a runtime dir for auto-desk
+        let _ = create_dir(config::get_pipe_d());
+        let hook_checking = task::spawn( async move {
+            hooks::check_even_hooks(&mut control_rx, &mut cmd_rx, stop_exec, conf_hooks).await;
         });
         let hooks_db = hooks::HookDB::new();
-        Some(hooks::HookData { send: control_tx, db: hooks_db })
+        (Some(hooks::HookData { send: control_tx, cmd: cmd_tx, db: hooks_db }), Some(hook_checking))
     } else {
-        None
+        (None, None)
     };
     let wm = get_running_wm();
 
     loop {
         match listener.accept().await {
-            Ok((stream, _addr)) => {
+            Ok((mut stream, _addr)) => {
                 /* connection succeeded */
+                let command = read_command(&mut stream).await;
+                // println!("command: {}", command);
+                let (cmd, args) = split_cmd(&command);
+                if cmd == "SERVER-EXIT" {
+                    break;
+                }
+
                 match wm {
                     WindowManager::Qtile => {
                         // #[cfg(feature = "qtile")]
-                        match handle_client_qtile(&wm, stream, &mut layout, &mut hooks, wm_socket).await {
+                        // TODO: implement "SERVER-STOP" check.
+                        match handle_client_qtile(cmd, args, &wm, stream, &mut layout, &mut hooks, wm_socket).await {
                             Some(lo) => {
                                 layout = Some(lo.clone());
                                 println!("[DEBUG] layout: {:?}", lo);
@@ -286,7 +289,7 @@ async fn recv_loop(configs: config::Config) -> std::io::Result<()> {
                             // let tmp_wms = wm_socket.to_string();
                             // let tmp_hooks = hooks.clone();
                             // let tmp_config_hooks = configs.hooks.clone();
-                            handle_client_gen(&wm, &mut hooks, stream, wm_socket).await;
+                            handle_client_gen(cmd, args, &wm, &mut hooks, stream, wm_socket).await;
                         }
                     }
                 }
@@ -299,8 +302,18 @@ async fn recv_loop(configs: config::Config) -> std::io::Result<()> {
         }
     }
 
-    println!("killing listener");
+    println!("[LOG] killing listener");
     drop(listener);
+    println!("[LOG] listener killed");
+    println!("[LOG] stopping hooks");
+    if let Some(h_dat) = hooks {
+        let _ = h_dat.cmd.send(msgs::Hook::Exit).await;
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    }
+    if let Some(hook_checking) = hook_checking {
+        hook_checking.abort()
+    }
+    println!("[LOG] hooks stopped");
     Ok(())
 }
 
@@ -333,4 +346,5 @@ pub async fn server_start() {
         Ok(_) => {}
         Err(e) => println!("[ERROR] {}", e),
     }
+    println!("[LOG] server session terminated");
 }

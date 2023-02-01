@@ -4,6 +4,7 @@ pub mod config;
 pub mod events;
 pub mod hooks;
 pub mod leftwm;
+pub mod msgs;
 pub mod qtile;
 pub mod wm_lib;
 pub mod server;
