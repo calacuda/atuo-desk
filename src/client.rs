@@ -1,5 +1,7 @@
 // #![deny(clippy::all)]
+use crate::config;
 use clap::ArgMatches;
+use std::fs::remove_file;
 use std::io::Read;
 use std::io::Write;
 use std::net::Shutdown;
@@ -7,12 +9,8 @@ use std::os::unix::net::UnixStream;
 use std::path::Path;
 use std::process::exit;
 use std::str;
-use std::fs::{remove_file, remove_dir_all};
-use crate::config;
-
 
 type ErrorCode = u8;
-
 
 pub fn handle_args(args: ArgMatches) {
     // let args = get_args();
@@ -47,11 +45,18 @@ pub async fn stop_server() {
 
     let _ = kill_server(&server_soc);
     match clean_fs(&server_soc) {
-        Ok(_) => {},
-        Err(failed_files) => println!("failed to delete the files:\n - {}",failed_files.join("\n - ")),
+        Ok(_) => {}
+        Err(failed_files) => {
+            println!("[ERROR] failed to delete the following files:");
+
+            for er_mesg in failed_files {
+                println!("\t- {er_mesg}");
+            }
+        }
     }
 }
 
+/// send a kill signal to the server.
 fn kill_server(server_soc: &str) -> Result<String, String> {
     // send kill signal to unix socket server located at server_soc.
     // TODO: implement the SERVER-EXIT command.
@@ -63,18 +68,19 @@ fn kill_server(server_soc: &str) -> Result<String, String> {
     }
 }
 
+/// removes unused files from the file system (eg. the server socket, and the ports sentinel com file. )
 fn clean_fs(server_soc: &str) -> Result<(), Vec<String>> {
-    let f_s = [server_soc]; 
+    let f_s = [server_soc.to_string(), config::get_pipe_f()];
     let mut e_s = Vec::new();
 
     // remove the runtime dir which stores named pipes and such.
-    let _ = remove_dir_all(config::get_pipe_d());
+    // let _ = remove_dir_all(config::get_pipe_d());
 
-    // remove all files outside the runtime dir. if it can't rm the file for what ever 
+    // remove all files outside the runtime dir. if it can't rm the file for what ever
     // reason, it will add the files it can't remove to a vector.
     for f in f_s {
-        if let Err(e) = remove_file(f) {
-            e_s.push(String::from(f));
+        if let Err(e) = remove_file(&f) {
+            e_s.push(format!("failed to clear file \"{f}\". got error:{e}"));
         };
     }
 
@@ -86,7 +92,7 @@ fn clean_fs(server_soc: &str) -> Result<(), Vec<String>> {
 }
 
 fn send_data(data: String, server_soc: &str) -> (ErrorCode, String) {
-    let mut stream = match UnixStream::connect(&server_soc) {
+    let mut stream = match UnixStream::connect(server_soc) {
         Ok(stream) => stream,
         Err(_) => {
             println!("[ERROR] couldn't connect to socket at \"{}\"", server_soc);
@@ -130,7 +136,7 @@ fn send_data(data: String, server_soc: &str) -> (ErrorCode, String) {
         let response = &response_bytes[1..];
         (ec, response)
     } else {
-        return (0, String::new())
+        return (0, String::new());
     };
 
     if ec > 0 {

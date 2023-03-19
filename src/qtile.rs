@@ -64,8 +64,7 @@ impl QtileCmdData {
         match self.rules.get_mut(wmc) {
             Some(rules) => {rules.push(desktop.to_string());},
             None => {
-                let mut set = Vec::new();
-                set.push(desktop.to_string());
+                let set = vec![desktop.to_string()];
                 self.rules.insert(wmc.to_string(), set);
             }
         };
@@ -87,10 +86,7 @@ impl QtileCmdData {
     }
 
     fn should_clear(&mut self, group: &str) -> bool {
-        match self.clear.remove(group) {
-            Some(b) => b,
-            None => false,
-        }
+        self.clear.remove(group).unwrap_or(false)
     }
 }
 
@@ -130,7 +126,7 @@ pub fn auto_move(args: &str, layout: &mut Option<QtileCmdData>) -> Result<Option
             return Ok(None)
         },
     };
-    let arguments = args.splitn(2," ").collect::<Vec<&str>>();
+    let arguments = args.splitn(2, ' ').collect::<Vec<&str>>();
     if arguments.len() != 2 {
         println!("[ERROR] wrong number of arguments, {}", arguments.len());
         return Err(7);
@@ -153,7 +149,7 @@ pub fn auto_move(args: &str, layout: &mut Option<QtileCmdData>) -> Result<Option
 
 /// open-at
 pub fn open_on_desktop(spath: &str, args: &str) -> u8 {
-    let data = args.split(" ").collect::<Vec<&str>>();
+    let data = args.split(' ').collect::<Vec<&str>>();
     
     if data.len() != 3 {
         return 7
@@ -199,7 +195,7 @@ pub fn make_cmd_data(fname: &str) -> Result<QtileCmdData, u8> {
         for program in &desktop.programs {
             match &program.wm_class {
                 Some(class) => {
-                    payload_struc.add_rules(&class, &desktop.desktop);
+                    payload_struc.add_rules(class, &desktop.desktop);
                     payload_struc.add_queue(&program.name, &program.args);
                 }
                 None => println!("no wm_class defined for {} in the layout file. could not setup or launch.", program.name),
@@ -286,7 +282,7 @@ fn qtile_send(payload: String, spath: &str) -> u8 {
         }
     };
 
-    if response_bytes.len() != 0  {
+    if !response_bytes.is_empty() {
         let (ec, res) = (response_bytes[0], &response_bytes[1..]);
         match std::str::from_utf8(res) {
             Ok(res) => {

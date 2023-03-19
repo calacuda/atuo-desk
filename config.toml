@@ -6,6 +6,7 @@ wm_socket = "/tmp/QTILE_SOC"
 
 [hooks]
 listen = true
+ignore_web = true
 exec_ignore = [
 			"firefox", 
 			"brave", 

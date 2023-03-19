@@ -1,9 +1,9 @@
 use events::Context;
+use std::collections::{HashMap, HashSet};
 use tokio::sync::mpsc::{Sender, Receiver};
 use tokio::process::Command;
 use tokio::task;
 use tokio::sync::mpsc::unbounded_channel;
-use std::collections::{HashMap, HashSet};
 use crate::config::Hook;
 use crate::config::OptGenRes;
 use crate::events;
@@ -72,7 +72,7 @@ impl HookDB {
 
     fn update(&mut self, new_db: HookDB) {
         for (_, hook) in new_db.hooks.iter() {
-            if let Err(_) = self.add_hook(hook.clone()) {
+            if self.add_hook(hook.clone()).is_err() {
                 println!("[ERROR] unknown error merging in new hook");
             };
         }
@@ -147,10 +147,10 @@ fn run_hooks(context: Option<HashMap<String, String>>, event_hook: &[HookID], al
 
     let hooks = get_hooks(event_hook, all_hooks);
     // let mut cmds = Vec::new();
-    println!("hooks: {:?}", hooks);
+    // println!("hooks: {:?}", hooks);
 
     for hook in hooks {
-        println!("program: {}", &hook.exec);
+        // println!("program: {}", &hook.exec);
         let mut cmd = Command::new("sh")
         .arg("-c")
         .arg(&hook.exec)
@@ -201,14 +201,8 @@ pub async fn hooks_switch(
 }
 
 /// starts asynchronously checking for events and then triggers hooks.
-pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, cmd_passer: &mut Receiver<msgs::Hook>, stop_execs: HashSet<String>, config_hooks: Vec<Hook>) {
-    // FIXME: old variable don't get cleared till they go out of scope. I suspect that the old async func calls 
-    // that get checked in the loop are cluttering the memory and thats whats causing the crashing
-    // TODO: figure out a new way to handle the async polling od the functions.
-    //       ideas:
-    //          - use threads and use message passing to get data out of the threads. then async wait on the receiver.
-    //          - 🤷 IDK 
-    
+pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, cmd_passer: &mut Receiver<msgs::Hook>, stop_execs: HashSet<String>, config_hooks: Vec<Hook>, ignore_web: bool) {
+      
     // define the hook storage struct
     let mut hook_db = HookDB::new();
     make_db_from_conf(config_hooks, &mut hook_db).await;
@@ -217,7 +211,7 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, cmd_passer: &mu
     let (ports_tx, mut ports_rx) = unbounded_channel::<Vec<Context>>();
     let ports = task::spawn(
         async move {
-            events::port_change(stop_execs, ports_tx).await
+            events::port_change(stop_execs, ignore_web, ports_tx).await
         }
     );
 
@@ -279,22 +273,28 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, cmd_passer: &mu
                 }
             },
             context = wifi_net_rx.recv() => {
+                println!("[LOG] running event hooks for event 'wifi-network-change'");
                 run_hooks(context, &hook_db.wifi_net, &hook_db.hooks);
             },
             context = net_con_rx.recv() => {
+                println!("[LOG] running event hooks for event 'network-toggle'");
                 run_hooks(context, &hook_db.net_con, &hook_db.hooks);
             },
             // context = events::file_exists() => run_hooks(context, &hook_db.test_file_exists, &hook_db.hooks).await,
             context = bl_rx.recv() => {
+                println!("[LOG] running event hooks for event 'backlight change'");
                 run_hooks(context, &hook_db.backlight, &hook_db.hooks);
             },
             context = usb_rx.recv() => {
+                println!("[LOG] running event hooks for event 'new-usb-device'");
                 run_hooks(context, &hook_db.usb_dev, &hook_db.hooks);
             },
             context = blt_rx.recv() => {
+                println!("[LOG] running event hooks for event 'bluetooth-device'");
                 run_hooks(context, &hook_db.bluetooth_conn, &hook_db.hooks);
             },
             contexts = ports_rx.recv() => {
+                println!("[LOG] running event hooks for event 'port-status-change'");
                 // println!("running hooks");
                 if let Some(contexts) = contexts {
                     for context in contexts {

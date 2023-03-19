@@ -92,5 +92,5 @@ fn get_layout_file(file_name: &str) -> Result<String, ()> {
             return Ok(p.to_str().unwrap().to_string());
         }
     }
-    return Err(());
+    Err(())
 }

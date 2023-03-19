@@ -16,8 +16,8 @@ use crate::config::OptGenRes;
 fn remove_present(progs: &Vec<Program>, execs: &mut Vec<String>) -> Vec<Program> {
     let mut programs = Vec::new();
     for program in progs {
-        let prog = &get_exec(&program).to_lowercase();
-        if execs.contains(&prog) {
+        let prog = &get_exec(program).to_lowercase();
+        if execs.contains(prog) {
             let i = execs.iter().position(|x| x == prog).unwrap();
             println!("removeing {} at position {}", prog, i);
             execs.remove(i);
@@ -26,18 +26,18 @@ fn remove_present(progs: &Vec<Program>, execs: &mut Vec<String>) -> Vec<Program>
         }
     }
 
-    return programs;
+    programs
 }
 
 fn get_exec(program: &Program) -> String {
-    return match parse_entry(format!("/usr/share/applications/{}", &program.name)) {
+    match parse_entry(format!("/usr/share/applications/{}", &program.name)) {
         Ok(entry) => entry
             .section("Desktop Entry")
             .attr("Name")
             .expect(&program.name)
             .to_string(),
         Err(_) => program.name.clone(),
-    };
+    }
 }
 
 fn get_progs(desktop_name: &str, programs: &Vec<Program>, spath: &str) -> Vec<Program> {
@@ -50,10 +50,7 @@ fn get_progs(desktop_name: &str, programs: &Vec<Program>, spath: &str) -> Vec<Pr
     for id in window_ids {
         // println!("id :  {} | d :  {}", id, desktop_name);
         let pid = match String::from_utf8(get_window_pid(id).stdout) {
-            Ok(pid) => match pid.trim().parse::<i32>() {
-                Ok(p) => p,
-                Err(_) => 0,
-            },
+            Ok(pid) => pid.trim().parse::<i32>().unwrap_or(0),
             Err(_) => 0,
         };
 
@@ -70,9 +67,7 @@ fn get_progs(desktop_name: &str, programs: &Vec<Program>, spath: &str) -> Vec<Pr
         execs.push(exec.to_lowercase());
     }
 
-    let progs = remove_present(programs, &mut execs);
-
-    return progs;
+    remove_present(programs, &mut execs)
 }
 
 fn load_layout(spath: &str, args: &str) -> u8 {
@@ -86,7 +81,7 @@ fn load_layout(spath: &str, args: &str) -> u8 {
     // println!("[LOG] loading layout {}", file_path);
 
     // stop the window manager from following to the newest window. not actually nessesary.
-    send(&spath, "config ignore_ewmh_focus true");
+    send(spath, "config ignore_ewmh_focus true");
 
     // let error_code = if file_path.ends_with(".yml") || file_path.ends_with(".yaml") {
     //     load_from_yaml(layout_file, spath, &file_path)
@@ -97,9 +92,9 @@ fn load_layout(spath: &str, args: &str) -> u8 {
 
     let error_code = load_from_yaml(layout_yaml, spath);
 
-    send(&spath, "config ignore_ewmh_focus false");
+    send(spath, "config ignore_ewmh_focus false");
 
-    return error_code;
+    error_code
 }
 
 fn load_from_yaml(layouts: Vec<DesktopLayout>, spath: &str) -> u8 {
@@ -115,7 +110,7 @@ fn load_from_yaml(layouts: Vec<DesktopLayout>, spath: &str) -> u8 {
 
     let mut launchers = Vec::new();
 
-    let tmp_spath = spath.to_owned().clone();
+    let tmp_spath = spath.to_string();
     launchers.push(thread::spawn(move || {
         init_layouts(&tmp_spath, &sync_layouts)
     }));
@@ -140,21 +135,21 @@ fn load_from_yaml(layouts: Vec<DesktopLayout>, spath: &str) -> u8 {
         }
     }
 
-    return 0;
+    0
 }
 
 fn init_layouts(spath: &str, layouts: &Vec<DesktopLayout>) -> Vec<u8> {
     let mut res_codes = Vec::new();
 
     for layout in layouts {
-        res_codes.append(&mut init_layout(&spath, &layout));
+        res_codes.append(&mut init_layout(spath, layout));
     }
 
     res_codes
 }
 
 fn init_layout(spath: &str, layout: &DesktopLayout) -> Vec<u8> {
-    let desktop_num = format!("{}", layout.desktop);
+    let desktop_num = layout.desktop.to_string();
     let programs = layout.programs.clone();
     let tmp_spath = spath.to_string();
     set_up_desktop(&desktop_num, &programs, &tmp_spath)
@@ -176,7 +171,7 @@ fn set_up_desktop(desktop_name: &str, programs: &Vec<Program>, spath: &str) -> V
         }
     }
 
-    return ecs;
+    ecs
 }
 
 fn run_exec(exec: &String, desktop_name: &str, program: &Program, spath: &str) -> u8 {
@@ -211,7 +206,7 @@ fn run_exec(exec: &String, desktop_name: &str, program: &Program, spath: &str) -
 
     // thread::sleep(time::Duration::from_millis(100));
 
-    let error_code = open_program(&format!("{}", &program.name));
+    let error_code = open_program(&program.name);
 
     // bspwm::open_on_desktop(spath, &format!("{} {}", &program.name, desktop_name));
     let t = match program.delay {
@@ -232,7 +227,7 @@ fn run_exec(exec: &String, desktop_name: &str, program: &Program, spath: &str) -
         }
     }
 
-    return 0;
+    0
 }
 
 fn query(spath: &str, message: &str) -> String {
@@ -249,7 +244,7 @@ fn query(spath: &str, message: &str) -> String {
                     println!("could not read from bspwm socket. user intervention requested.");
                 }
             };
-            return res;
+            res
         }
         Err(e) => {
             println!(
@@ -311,7 +306,7 @@ fn open_on_desktop(spath: &str, raw_args: &str) -> u8 {
         thread::sleep(t);
     }
 
-    return process;
+    process
 }
 
 fn get_n_args(n: i32, arg_str: &str) -> Vec<String> {
@@ -319,7 +314,7 @@ fn get_n_args(n: i32, arg_str: &str) -> Vec<String> {
         return Vec::new();
     }
     let mut args = Vec::new();
-    let a = arg_str.split_once(" ");
+    let a = arg_str.split_once(' ');
     match a {
         Some((arg1, arg2)) => {
             args.push(arg1.to_string());
@@ -327,26 +322,26 @@ fn get_n_args(n: i32, arg_str: &str) -> Vec<String> {
         }
         None => args.push(arg_str.to_string()),
     };
-    return args;
+    args
 }
 
 fn focus_on(spath: &str, destination: &str) -> u8 {
-    return send(spath, &format!("desktop -f {}", destination));
+    send(spath, &format!("desktop -f {}", destination))
 }
 
 fn move_to(spath: &str, destination: &str) -> u8 {
-    return send(spath, &format!("node -d {}", destination));
+    send(spath, &format!("node -d {}", destination))
 }
 
 fn close_focused(spath: &str) -> u8 {
-    return send(spath, "node -c");
+    send(spath, "node -c")
 }
 
 fn make_api(message: &str) -> Vec<u8> {
     let null = &format!("{}", 0 as char);
     let mut res = message.replace(' ', null).as_bytes().to_vec();
     res.push(0);
-    return res;
+    res
 }
 
 fn send(spath: &str, message: &str) -> u8 {
@@ -364,21 +359,21 @@ fn send(spath: &str, message: &str) -> u8 {
                     println!("could not read from bspwm socket. user intervention requested.");
                 }
             };
-            return if res.len() > 0 && res[0] == 7 as u8 {
+            if !res.is_empty() && res[0] == 7_u8 {
                 println!("[ERROR] BSPWM error: {}", String::from_utf8(res).unwrap());
                 6
             } else {
                 // use std::str;
                 // println!("res :  {}", str::from_utf8(&res).unwrap());
                 0
-            };
+            }
         }
         Err(e) => {
             println!(
                 "[ERROR] could not connect to bspwm (are you usign the right socket file?): {}",
                 e
             );
-            return 5;
+            5
         }
     }
 }

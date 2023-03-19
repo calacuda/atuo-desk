@@ -1,15 +1,25 @@
-use procfs::process::{FDTarget, Stat};
+use crate::{
+    MSG_ERROR as ERROR,
+    // MSG_SUCCESS as SUCCESS,
+    MSG_DELIM as DELIM
+};
+use procfs::process::Process;
 // use tokio::process::Command;
 use tokio::time::{sleep, Duration};
-use tokio::io::{BufReader, AsyncBufReadExt, AsyncWriteExt};
+// use tokio::io::{BufReader, AsyncBufReadExt};
 // use tokio::fs::File;
 // use tokio::io::AsyncReadExt;
 // use tokio::sync::mpsc::{Sender, Receiver, channel};
-use tokio::sync::mpsc::{UnboundedSender, unbounded_channel};
+use tokio::sync::mpsc::UnboundedSender;
 use usb_enumeration::UsbDevice;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::hash::Hash;
+use std::path::PathBuf;
 // use std::io::Read;
+use tokio::net::UnixListener;
+// use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use online::tokio::check;
 use tokio::fs;
 use tokio::time;
@@ -19,10 +29,10 @@ use btleplug::platform::{Adapter, Manager};
 use futures::stream::StreamExt;
 use std::error::Error;
 use iw::interfaces;
-use unix_named_pipe as unp;
 use crate::config;
+
 // use notify::{Event, RecommendedWatcher, PollWatcher, RecursiveMode, Watcher, Config};
-// use futures::{
+// use futures::{std::os::unix::fs::PermissionsExt;
 //     channel::mpsc::{channel, Receiver},
 //     SinkExt, StreamExt,
 // };
@@ -33,11 +43,15 @@ const RESOLUTION: u64 = 2500;
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct Port {
     local_addr: String, 
-    remote_addr: String, 
+    remote_addr: String,
+    lport: String,
+    rport: String,
     state: String, 
-    inode: u64, 
+    // inode: u64, 
     pid: Option<i32>, 
     exec: Option<String>,
+    // port: String,
+    con_dir: String,
 }
 
 // #[cfg(feature = "rw_test")]
@@ -321,202 +335,157 @@ pub async fn blt_dev_conn(return_tx: UnboundedSender<Context>) {
     }
 }
 
-/// returns open tcp ports
-fn get_tcp_ports(stop_execs: &HashSet<String>) -> HashSet<Port> {
-    // get all processes
-    let all_procs = procfs::process::all_processes().unwrap();
-
-    // build up a map between socket inodes and processes:
-    let mut map: HashMap<u64, Stat> = HashMap::new();
-    for p in all_procs {
-        let process = p.unwrap();
-        if let (Ok(stat), Ok(fds)) = (process.stat(), process.fd()) {
-            for fd_info in fds.flatten() {
-                    if let FDTarget::Socket(inode) = fd_info.target {map.insert(inode, stat.clone());}
-            }
-        }
-    }
-
-    let tcp = procfs::net::tcp().unwrap();
-    let tcp6 = procfs::net::tcp6().unwrap();
-    // this way it ignores ports having to do with web browsers
-    let mut ports = HashSet::new();
-
-    for entry in tcp.into_iter().chain(tcp6) {
-        // find the process (if any) that has an open FD to this entry's inode
-        let local_address = format!("{}", entry.local_address);
-        let remote_address = format!("{}", entry.remote_address);
-        let port_state = format!("{:?}", entry.state);
-        if let Some(stat) = map.get(&entry.inode) {
-            // println!(
-            //     "{:<26} {:<26} {:<15} {:<12} {}/{}",
-            //     local_address, remote_addr, state, entry.inode, stat.pid, stat.comm
-            // );
-
-            // this way it ignores ports having to do with web browsers
-            if !stop_execs.contains(&stat.comm) {
-                let port = Port {
-                    local_addr: local_address, 
-                    remote_addr: remote_address, 
-                    state: port_state, 
-                    inode: entry.inode, 
-                    pid: Some(stat.pid), 
-                    exec: Some(stat.comm.clone()),
-                };
-                // println!("{:?}", port);
-                ports.insert(port);
-            }
-        } else {
-            // We might not always be able to find the process assocated with this socket
-            // println!(
-            //     "{:<26} {:<26} {:<15} {:<12} -",
-            //     local_address, remote_addr, state, entry.inode
-            // );
-            // let port = Port {
-            //     local_addr: local_address, 
-            //     remote_addr: remote_addr, 
-            //     state: state, 
-            //     // inode: entry.inode, 
-            //     pid: None, 
-            //     exec: None,
-            // };
-            // ports.insert(port);
-        }
-    }
-
-    ports
-}
-
-fn get_changed(old_ports: HashSet<Port>, new_ports: HashSet<Port>) -> (HashSet<Port>, HashSet<Port>) {
-    let old_diff = old_ports.difference(&new_ports).into_iter().map(|p| p.to_owned()).collect::<HashSet<Port>>();
-    let new_diff = new_ports.difference(&old_ports).into_iter().map(|p| p.to_owned()).collect::<HashSet<Port>>();
-    (old_diff, new_diff)
-}
-
-fn make_context(port: Port, became: &str) -> Context {
+fn make_context(port: Port) -> Context {
+    // println!("exec => {:?}:{:?} {:?}", port.exec, port.lport, port.rport);
     let mut context = HashMap::new();
     context.insert("local_adr".to_string(), port.local_addr);
     context.insert("remote_adr".to_string(), port.remote_addr);
     context.insert("state".to_string(), port.state);
     context.insert("executable".to_string(), match port.exec {
         Some(exe) => exe,
-        None => "".to_string(),
+        None => String::new(),
     });
-    context.insert("inode".to_string(), format!("{}", port.inode));
-    context.insert("l_addr".to_string(), match port.pid {
+    // context.insert("inode".to_string(), format!("{}", port.inode));
+    context.insert("pid".to_string(), match port.pid {
         Some(pid) => format!("{}", pid),
         None => "".to_string(),
     });
-    context.insert("became".to_string(), became.to_string());
+    // context.insert("became".to_string(), became.to_string());
+    // context.insert("port".to_string(), port.port.to_string());
+    context.insert("connection-direction".to_string(), port.con_dir.to_string());
+    context.insert("local-port".to_string(), port.lport.to_string());
+    context.insert("remote-port".to_string(), port.rport.to_string());
 
     context
 }
 
-fn make_port_contexts(closed: HashSet<Port>, opened: HashSet<Port>) -> Vec<Context> {
-    let mut contexts = Vec::new();
-    // let mut ;
-    for closed_port in closed {
-        contexts.push(make_context(closed_port, "closed"));
-    }
+async fn make_port_context(ports: Vec<Port>) -> Vec<Context> {
+    // let contexts: Vec<Context> = Vec::new();
 
-    for opened_port in opened {
-        contexts.push(make_context(opened_port, "opened"));
-    }
+    // for port in ports {
+    //     contexts.push(make_context(port));
+    // }
 
-    contexts
+    // contexts
+    ports.into_iter().map(make_context).collect()
 }
 
-async fn get_tcp_conn(stop_execs: HashSet<String>, sender: UnboundedSender<(HashSet<Port>, HashSet<Port>)>) {
-    let mut open_ports = get_tcp_ports(&stop_execs);
-    // let mut interval = time::interval(Duration::from_millis(RESOLUTION/10));
-    let interval = std::time::Duration::from_millis(RESOLUTION/6);
-
-    loop {
-        // interval.tick().await;
-        sleep(interval).await;
-        let new_open_ports = get_tcp_ports(&stop_execs);
-
-        if open_ports != new_open_ports {
-            match sender.send(get_changed(open_ports, new_open_ports.clone())) {
-                Ok(_) => {}
-                Err(_) => {println!("could not send port status change to ")}
-            }
-            // let (closed, opened) = get_changed(open_ports, new_open_ports).await;
-            // return make_port_contexts(closed, opened).await;
-            open_ports = new_open_ports;
+async fn make_port(port_dat: &[&str], stop_execs: &HashSet<String>) -> Option<Port> {
+    // 0     ,      1         ,      2           ,      3          ,      4            ,       5                    
+    // {pid}{DELIM}{local ip}{DELIM}{local port}{DELIM}{remote_ip}{DELIM}{remote port}{DELIM}{INCOMING/OUT-GOING}
+    let tmp_pid = port_dat[0];
+    
+    // get the executable associated with the provided pid.
+    let (proc_id, executable) = match tmp_pid.parse() {
+        Ok(pid) => {
+            match Process::new(pid) {
+                Ok(proc) => {
+                    match proc.exe().unwrap_or(PathBuf::new()).file_name() {
+                        Some(path) => {
+                            let exe = path.to_str().unwrap_or("").to_string();
+                            (Some(pid), Some(exe))
+                        },
+                        None => (Some(pid), None),
+                    }
+                },
+                Err(_e) => (Some(pid), None), 
+            } 
         }
+        Err(_e) => {
+            println!("[ERROR] could not interpret pid, '{}', as an i32", port_dat[0]);
+            (None, None)
+        }
+    };
+
+    // println!("port shift => {:?}:{:?}", exec, pid);
+
+    let port = Some(
+        Port{ 
+            local_addr: port_dat[1].to_string(),
+            remote_addr: port_dat[3].to_string(),
+            lport: port_dat[2].to_string(),
+            rport: port_dat[4].to_string(),
+            state: "".to_string(),
+            pid: proc_id,
+            exec: executable.clone(),
+            // port: port_dat[2].to_string(),
+            con_dir: port_dat[5].to_string(),
+        }
+    );
+
+    match executable {  
+        Some(exec) if !stop_execs.contains(&exec) => port,
+        None => port,
+        _ => None,
     }
 }
 
-// pub async fn port_change(stop_execs: HashSet<String>, return_tx: UnboundedSender<Vec<Context>>) {
-//     let mut tcpdump = match Command::new("sh")
-//         .arg("-c")
-//         .arg("doas tcpdump -n 'not icmp and not arp and (tcp[tcpflags] == tcp-syn or tcp[tcpflags] == tcp-ack or tcp[13] = 18)' 2> /dev/null")
-//         .stdout(std::process::Stdio::piped())
-//         .spawn() {
-//         Ok(child_proc) => child_proc,
-//         Err(e) => {
-//             println!("Cannot run program tcpdump: {e}");
-//             return;
-//         }
-//     };
+pub async fn port_change(stop_execs: HashSet<String>, ignore_web: bool, return_tx: UnboundedSender<Vec<Context>>) {
+    let pipe_f = config::get_pipe_f();
 
-//     loop {
-//         match tcpdump.stdout.as_mut() {
-//             Some(out) => { 
-//                 let mut buf_reader = BufReader::new(out).lines();
-//                 while let Ok(line) = buf_reader.next_line().await {
-//                     match line {
-//                         Some(l) => {
-//                             println!("{l}");
-//                             // parse and send line.
-//                         }
-//                         None => {},
-//                     };
-//                 }
-//                 println!("after while loop");
-//             }
-//             None => break,
-//         }
-//     }
-//     println!("end of function")
-// }
-
-pub async fn port_change(stop_execs: HashSet<String>, return_tx: UnboundedSender<Vec<Context>>) {
-    // let (tx, mut rx) = unbounded_channel::<(HashSet<Port>, HashSet<Port>)>();
-    // // let tse = stop_execs.clone();
-    // let _corout = tokio::task::spawn(
-    //     async move {
-    //         get_tcp_conn(stop_execs, tx).await
-    //     } 
-    // );
-    let pipe_f = format!("{}/auto-desk.pipe", config::get_pipe_d());
+    let listener = match UnixListener::bind(&pipe_f) {
+        Ok(listener) => listener,
+        Err(e) => {
+            println!("[ERROR] could not generate ports listener at \"{pipe_f}\" because of error, '{e}'.");
+            println!("[LOG] ports event hook disabled.");
+            return;
+        }
+    };
+    
 
     loop {
-        match tokio::fs::File::open(pipe_f.as_str() ).await {
-            Ok(f) => {
-                let mut ports = BufReader::new(f).lines();
-
-                while let Ok(Some(port)) = ports.next_line().await {
-                    println!("contents: {:?}\n",  port);
-                    // parse port and send port data.
+        match listener.accept().await {
+            Ok((mut stream, _)) => {
+                let mut ports = String::new();
+                
+                match stream.read_to_string(&mut ports).await {
+                    Ok(_) => {},
+                    Err(e) => eprintln!("[ERROR] failed to read from port socket: {e}"),
+                }
+                if let Err(reason) = stream.shutdown().await {
+                    println!("[ERROR] could not shut down input stream because, \"{reason}\"");
                 }
 
-                // f.flush();
-            },
-            Err(_) => {
-                // println!("could not read from pipe_file. got error {e}");
-                match unp::create(&pipe_f, Some(0o666)) {
-                    Ok(_) => {},
-                    Err(e) => {
-                        println!("error creating named pipe. got error; {e}");
-                        // return;
+
+                let mut parsed_ports = Vec::new();
+
+                for line in ports.split('\n') {
+                    let port_dat: Vec<&str> = line.split(DELIM).collect();  
+                    // {error-code}{DELIM}{pid}{DELIM}{local ip}{DELIM}{local port}{DELIM}{remote_ip}{DELIM}{remote port}{DELIM}{INCOMING/OUT-GOING/LOCAL}{DELIM}{index}
+                    // eprint!("UID {} => ", port_dat[7]);
+                    if line.as_bytes()[0] as char != ERROR {
+                        if let Some(port) = make_port(&port_dat[1..], &stop_execs).await {
+                            // println!("{:?}", port);
+                            if (port.con_dir.to_lowercase() != "out-going" || !["80", "443"].contains(&port.rport.as_str())) && ignore_web {
+                                parsed_ports.push(port);
+                            }
+                        } 
+                        // else {
+                        //     println!("{:?}", port_dat);
+                        // }
+                    } else {
+                        eprintln!("[ERROR] {}", port_dat[1]);
                     }
                 }
+
+                let contexts = make_port_context(parsed_ports.clone().into_iter().filter(|port| !stop_execs.contains(&port.exec.clone().unwrap_or(String::new()))).collect::<Vec<Port>>()).await;
+
+                if !contexts.is_empty() { 
+                    // println!("context => {:#?}", contexts);
+                    // println!("ports => {:#?}", ports);
+                    // println!("inodes => {:#?}", parsed_ports.keys());
+
+                    if let Err(e) = return_tx.send(contexts) {
+                        println!("[ERROR] could not send port context to main event process. got  error:\n{e}");
+                    }
+                    // println!("sent");
+                }
+            },
+            Err(e) => {
+                println!("could not read from data from unix socket at {pipe_f}. got error {e}");
             }
         }
-        // sleep(Duration::from_millis(100)).await;
+        sleep(Duration::from_millis(100)).await;
     }
     // println!("end of function")
-    // corout.abort();
 }

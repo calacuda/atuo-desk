@@ -23,13 +23,13 @@ pub fn get_cmd_file() -> Option<PathBuf> {
     let file_name = "command-0.pipe";
     match BaseDirectories::with_prefix("leftwm") {
         Ok(run_dir) => {
-            match run_dir.find_runtime_file(&file_name) {
-                Some(path) => Some(path),
-                None => {
-                    // println!("[ERROR] Couldn't find the leftwm command.pipe file.");
-                    None
-                }
+            let dirs  = run_dir.find_runtime_file(file_name);
+
+            if dirs.is_none() {
+                println!("[ERROR] Couldn't find the leftwm command.pipe file.");
             }
+
+            dirs
         }
         Err(e) => {
             println!("[ERROR] Couldn't find the leftwm run dir. got error: \n{e}");
@@ -92,7 +92,7 @@ async fn init_layouts(layouts: &Vec<wm_lib::DesktopLayout>) -> Vec<u8> {
     let mut res_codes = Vec::new();
 
     for layout in layouts {
-        res_codes.append(&mut init_layout(&layout).await);
+        res_codes.append(&mut init_layout(layout).await);
     }
 
     res_codes
@@ -121,7 +121,7 @@ async fn set_up_desktop(desktop_name: &str, programs: &Vec<wm_lib::Program>) -> 
         ecs.push(ec);
     }
 
-    return ecs;
+    ecs
 }
 
 fn get_progs(programs: &Vec<wm_lib::Program>) -> Vec<(String, Option<u8>)> {
@@ -144,7 +144,7 @@ async fn close_focused() -> u8 {
 }
 
 async fn open_on_desktop(args: &str) -> u8 {
-    let (desktop, cmd) = match args.split_once(" ") {
+    let (desktop, cmd) = match args.split_once(' ') {
         Some(args) => args,
         None => {
             println!("[ERROR] wrong number of arguments.");

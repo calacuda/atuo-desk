@@ -16,7 +16,7 @@ use crate::msgs;
 
 enum WindowManager {
     Qtile,
-    BSPWM,
+    Bspwm,
     LeftWM,
     NoWM,
     Headless,
@@ -24,12 +24,9 @@ enum WindowManager {
 
 fn make_payload(ec: u8, message: Option<String>) -> Vec<u8> {
     let mut payload = vec![ec, if ec > 0 {7} else {0}];
-    match message {
-        Some(mesg) => {
-            // println!("making payload with message {mesg}");
-            payload.append(&mut mesg.as_bytes().into_iter().map(|byte| *byte).collect::<Vec<u8>>());
-        },
-        None => {}
+    if let Some(mesg) = message {
+        // println!("making payload with message {mesg}");
+        payload.append(&mut mesg.as_bytes().to_vec());
     }
     // println!("payload => {:?}", payload);
     payload
@@ -53,19 +50,25 @@ fn test_make_payload() {
     assert_eq!(pl_6, vec![0, 0]);
 }
 
-fn write_shutdown(stream: &mut UnixStream, ec: u8, message: Option<String>) {
+async fn write_shutdown(stream: &mut UnixStream, ec: u8, message: Option<String>) {
     // println!("message => {:?}", message);
     let payload = make_payload(ec, message);
     // println!("payload => {:?}", payload);
-    let _ = stream.try_write(&payload);
-    let _ = stream.shutdown();
+    if let Err(reason) = stream.try_write(&payload) {
+        println!("[ERROR] could not write out to client because: \"{reason}\", attempting to close communication stream");
+    }
+    if let Err(reason) = stream.shutdown().await {
+        println!("[ERROR] could not shutdown after write because: \"{reason}\", client will likely hang");
+    };
 }
 
 async fn read_command(stream: &mut UnixStream) -> String {
     let mut command = String::new();
     // stream.set_nonblocking(false);
     let _ = stream.read_to_string(&mut command).await;
-    let _ = stream.shutdown();
+    if let Err(reason) = stream.shutdown().await {
+        println!("[ERROR] could not read command from client, could not shutdown stream because {reason}");
+    }
     command
 }
 
@@ -84,7 +87,7 @@ async fn switch_board<'t>(
             #[cfg(feature = "qtile")]
             futures.push(Box::pin(qtile::qtile_switch(cmd, args, spath)));
         }
-        WindowManager::BSPWM => {
+        WindowManager::Bspwm => {
             #[cfg(feature = "bspwm")]
             futures.push(Box::pin(bspwm::bspwm_switch(cmd, args, spath)));
         }
@@ -139,7 +142,7 @@ async fn handle_client_gen(
     //     Some(mesg) => mesg,
     //     None => 
     // };
-    write_shutdown(&mut stream, ec, message);
+    write_shutdown(&mut stream, ec, message).await;
     drop(stream)
 }
 
@@ -157,26 +160,26 @@ async fn handle_client_qtile(
     match qtile::qtile_api(&cmd, &args, layout).await {
         Some(qtile::QtileAPI::Layout(new_layout)) => {
             println!("[DEBUG] Response Code: 0");
-            write_shutdown(&mut stream, 0, Some("configured layout".to_string()));
+            write_shutdown(&mut stream, 0, Some("configured layout".to_string())).await;
             drop(stream);
             Some(new_layout)
         },
         Some(qtile::QtileAPI::Message(message)) => {
             println!("[LOG] handle_qtile_client => Message");
             println!("[DEBUG] sending message => {message}");
-            write_shutdown(&mut stream, 0, Some(message));
+            write_shutdown(&mut stream, 0, Some(message)).await;
             drop(stream);
             None
         }
         Some(qtile::QtileAPI::Res(ec)) => {
             println!("[DEBUG] Response Code: {ec}");
-            write_shutdown(&mut stream, ec, None);
+            write_shutdown(&mut stream, ec, None).await;
             drop(stream);
             None
         }
         None => {
             let (ec, message) = switch_board(wm, &cmd, &args, wm_socket, hook_data).await;
-            write_shutdown(&mut stream, ec, message);
+            write_shutdown(&mut stream, ec, message).await;
             drop(stream);
             None
         }
@@ -191,7 +194,7 @@ fn is_wm_running(procs: &System, proc_name: &str, wm: &str) -> bool {
         }
     }
 
-    return false;
+    false
 }
 
 fn get_running_wm() -> WindowManager {
@@ -212,7 +215,7 @@ fn get_running_wm() -> WindowManager {
             // } else if Path::new("/tmp/bspwm_0_0-socket").exists() {
             } else if is_wm_running(&procs, "bspwm", "bspwm") {
                 println!("[LOG] Running in BSPWM mode");
-                WindowManager::BSPWM
+                WindowManager::Bspwm
             // } else if leftwm::get_cmd_file() != None {
             } else if is_wm_running(&procs,"leftwm", "leftwm") {
                 println!("[LOG] Running in leftwm mode");
@@ -229,10 +232,13 @@ async fn recv_loop(configs: config::Config) -> std::io::Result<()> {
     // println!("recv_loop");
     let program_socket = configs.server.listen_socket.as_str();
     let wm_socket = configs.server.wm_socket.as_str();
+
     println!("[LOG] listening on socket: {}", program_socket);
+
     let listener = UnixListener::bind(program_socket)?;
     // #[cfg(feature = "qtile")]  // make this compile for all features?
     let mut layout: Option<qtile::QtileCmdData> = None;
+
     let (mut hooks, hook_checking) = if Some(true) == configs.hooks.listen && cfg!(feature = "hooks") {
         let (control_tx, mut control_rx) = tokio::sync::mpsc::channel::<hooks::HookDB>(1);
         let (cmd_tx, mut cmd_rx) = tokio::sync::mpsc::channel::<msgs::Hook>(1);
@@ -241,13 +247,14 @@ async fn recv_loop(configs: config::Config) -> std::io::Result<()> {
         // make a runtime dir for auto-desk
         let _ = create_dir(config::get_pipe_d());
         let hook_checking = task::spawn( async move {
-            hooks::check_even_hooks(&mut control_rx, &mut cmd_rx, stop_exec, conf_hooks).await;
+            hooks::check_even_hooks(&mut control_rx, &mut cmd_rx, stop_exec, conf_hooks, configs.hooks.ignore_web).await;
         });
         let hooks_db = hooks::HookDB::new();
         (Some(hooks::HookData { send: control_tx, cmd: cmd_tx, db: hooks_db }), Some(hook_checking))
     } else {
         (None, None)
     };
+
     let wm = get_running_wm();
 
     loop {
@@ -265,22 +272,19 @@ async fn recv_loop(configs: config::Config) -> std::io::Result<()> {
                     WindowManager::Qtile => {
                         // #[cfg(feature = "qtile")]
                         // TODO: implement "SERVER-STOP" check.
-                        match handle_client_qtile(cmd, args, &wm, stream, &mut layout, &mut hooks, wm_socket).await {
-                            Some(lo) => {
-                                layout = Some(lo.clone());
-                                println!("[DEBUG] layout: {:?}", lo);
-                                task::spawn(
-                                    async move {
-                                        for program in lo.queue {
-                                            common::open_program(&program);
-                                        }
+                        if let Some(lo) =  handle_client_qtile(cmd, args, &wm, stream, &mut layout, &mut hooks, wm_socket).await {
+                            layout = Some(lo.clone());
+                            println!("[DEBUG] layout: {:?}", lo);
+                            task::spawn(
+                                async move {
+                                    for program in lo.queue {
+                                        common::open_program(&program);
                                     }
-                                );
-                            }
-                            None => {}
+                                }
+                            );
                         }
                     }
-                    WindowManager::BSPWM | 
+                    WindowManager::Bspwm | 
                     WindowManager::LeftWM |
                     WindowManager::Headless |
                     WindowManager::NoWM => {
@@ -317,6 +321,23 @@ async fn recv_loop(configs: config::Config) -> std::io::Result<()> {
     Ok(())
 }
 
+fn clear_sockets(prog_so: &str) {
+    for p in [prog_so, &config::get_pipe_f()] {
+        let path = std::path::Path::new(&p);
+        if path.exists() {
+            // println!("program socket exists");
+            println!("[LOG] clearing socker file at {:?}", path);
+            if let Err(e) = std::fs::remove_file(path)
+            // .unwrap_or_else(|e|
+                {
+                    println!("[ERROR] could not delete previous socket at {:?}\ngot error:\n{}", &path, e);
+                    // panic!(""); 
+                }
+            // )
+        }
+    }
+}
+
 pub async fn server_start() {
     let configs = match config::get_configs() {
         Ok(configs) => configs,
@@ -326,25 +347,18 @@ pub async fn server_start() {
             return;
         }
     };
-    let prog_so = &configs.server.listen_socket;
+    let prog_so = configs.server.listen_socket.clone();
     // let wm_socket = &configs.server.wm_socket;
 
     // println!("{:#?}", configs);
     // println!("progr {}\nwm_socket {}", prog_so, wm_socket);
-    let p = std::path::Path::new(&prog_so);
-    if p.exists() {
-        // println!("program socket exists");
-        std::fs::remove_file(prog_so).unwrap_or_else(|e| 
-            {
-                println!("[ERROR] could not delete previous socket at {:?}\ngot error:\n{}", &prog_so, e);
-                panic!(""); 
-            }
-        )
-    };
+    clear_sockets(&prog_so);
 
     match recv_loop(configs).await {
         Ok(_) => {}
         Err(e) => println!("[ERROR] {}", e),
     }
+
+    clear_sockets(&prog_so);
     println!("[LOG] server session terminated");
 }

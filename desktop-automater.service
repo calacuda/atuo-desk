@@ -1,10 +1,11 @@
 # designed to be run with systemctl start --user desktop-automater
-# file location: ~/.config/systemd/user.control/desktop-automater.service
+# file location: ~/.config/systemd/user/desktop-automater.service
 [Unit]
 Description=desktop-automater
 
 [Service]
 ExecStart=%h/.cargo/bin/auto-desk start
+ExecStop=%h/.cargo/bin/auto-desk stop
 
 [Install]
 WantedBy=multi-user.target

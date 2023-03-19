@@ -1,7 +1,5 @@
 #![warn(clippy::all)]
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
-use tokio;
-
 use auto_desk::server;
 use auto_desk::client;
 

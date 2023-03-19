@@ -197,3 +197,5 @@ go.work
 # misc
 *~
 *TEST.yml
+.vscode
+target
