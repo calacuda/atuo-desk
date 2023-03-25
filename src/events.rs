@@ -352,9 +352,9 @@ fn make_context(port: Port) -> Context {
     });
     // context.insert("became".to_string(), became.to_string());
     // context.insert("port".to_string(), port.port.to_string());
-    context.insert("connection-direction".to_string(), port.con_dir.to_string());
-    context.insert("local-port".to_string(), port.lport.to_string());
-    context.insert("remote-port".to_string(), port.rport.to_string());
+    context.insert("connection_direction".to_string(), port.con_dir.to_string());
+    context.insert("local_port".to_string(), port.lport.to_string());
+    context.insert("remote_port".to_string(), port.rport.to_string());
 
     context
 }

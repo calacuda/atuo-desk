@@ -1,0 +1,11 @@
+# designed to be run with sudo systemctl start port-sentinel
+# file location: /etc/systemd/user/port-sentinel.service
+[Unit]
+Description=port sentinel for auto-desk
+
+[Service]
+User=root
+ExecStart=/usr/bin/port-sentinel
+
+[Install]
+WantedBy=multi-user.target
