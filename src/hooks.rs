@@ -1,6 +1,8 @@
 use events::Context;
 use std::collections::{HashMap, HashSet};
 use tokio::sync::mpsc::{Sender, Receiver};
+// use std::process::Command;
+// use std::os::unix::process::CommandExt;
 use tokio::process::Command;
 use tokio::task;
 use tokio::sync::mpsc::unbounded_channel;
@@ -89,7 +91,7 @@ impl HookDB {
 #[derive(Clone)]
 pub struct HookData {
     pub send: Sender<HookDB>,
-    pub cmd: Sender<msgs::Hook>,
+    pub cmd: Sender<msgs::EventCmd>,
     pub db: HookDB,
 }
 
@@ -139,10 +141,39 @@ async fn get_hook(_hook_db: &HookDB) -> String {
     String::new()
 }
 
+fn execute_hook(exec: &str, context: HashMap<String, String>) {
+    let exec = String::from(exec); 
+
+    tokio::task::spawn(async move {
+        let proc = Command::new("sh")
+            .arg("-c")
+            .arg(&exec)  // format!("systemd-run --user {exec}")  // adding systemd-run doesnt work. 
+            // .env_clear()
+            .envs(context)
+            .spawn();  // maybe change to .output() or remove .wait().
+        
+        match proc {
+            Ok(mut child) => {
+                if let Err(reason) = child.wait().await {
+                    println!("[ERROR] hook: '{exec}', exited with error:");
+                    println!("\t{reason}");
+                } else {
+                    println!("[DEBUG] {child:?}");
+                }
+            }
+            Err(reason) => {
+                println!("[ERROR] could not run hook: '{exec}'.");
+                println!("\tit is likely that the executable could not be found, see bellow for error.");
+                println!("\tgot error:\n{reason}");
+            }
+        }
+    });
+}
+
 fn run_hooks(context: Option<HashMap<String, String>>, event_hook: &[HookID], all_hooks: &Hooks) {
     let context = match context {
         Some(con) => con,
-        None => return,
+        None => return,  // might need to change this return to an empty hashmap if any events don't return a context. 
     };
 
     let hooks = get_hooks(event_hook, all_hooks);
@@ -151,21 +182,25 @@ fn run_hooks(context: Option<HashMap<String, String>>, event_hook: &[HookID], al
 
     for hook in hooks {
         // println!("program: {}", &hook.exec);
-        let mut cmd = Command::new("sh")
-        .arg("-c")
-        .arg(&hook.exec)
-        // .env_clear()
-        .envs(&context)
-        .spawn()
-        // .expect(&format!("could not run hook: '{}'", hook.exec))
-        .unwrap_or_else(|e| 
-            { 
-                println!("[ERROR] could not run hook: '{}'\ngot error:\n{}", hook.exec, e);
-                panic!("") 
-            }
-        );
-        tokio::task::spawn(async move { let _ = cmd.wait().await; } );
-        // cmds.push(cmd);
+        // let exec = &hook.exec; 
+        // let mut raw_cmd = Command::new("sh")
+        // .arg("-c")
+        // .arg(format!("{exec} &"))
+        // // .env_clear()
+        // .envs(&context);
+        // // .spawn();
+        // // .expect(&format!("could not run hook: '{}'", hook.exec))
+        // let mut cmd = match raw_cmd.exec() {
+        //     Ok(child_proc) => child_proc,
+        //     Err(reason) => {
+        //         println!("[ERROR] could not run hook: '{}'\ngot error:\n{}", hook.exec, reason);
+        //         // panic!("")
+        //         continue;
+        //     }
+        // };
+        // tokio::task::spawn(async move { let _ = cmd.wait().await; } );
+
+        execute_hook(&hook.exec, context.clone())
     }
     // tokio::task::spawn(async {join_all(cmds)});
 } 
@@ -201,7 +236,7 @@ pub async fn hooks_switch(
 }
 
 /// starts asynchronously checking for events and then triggers hooks.
-pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, cmd_passer: &mut Receiver<msgs::Hook>, stop_execs: HashSet<String>, config_hooks: Vec<Hook>, ignore_web: bool) {
+pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, cmd_passer: &mut Receiver<msgs::EventCmd>, stop_execs: HashSet<String>, config_hooks: Vec<Hook>, ignore_web: bool) {
       
     // define the hook storage struct
     let mut hook_db = HookDB::new();
@@ -261,7 +296,7 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, cmd_passer: &mu
         tokio::select! {
             Some(cmd) = cmd_passer.recv() => {
                 match cmd {
-                    msgs::Hook::Exit => break,
+                    msgs::EventCmd::Exit => break,
                 }
             }
             message = hook_db_rx.recv() => {

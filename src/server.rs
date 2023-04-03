@@ -54,6 +54,7 @@ async fn write_shutdown(stream: &mut UnixStream, ec: u8, message: Option<String>
     // println!("message => {:?}", message);
     let payload = make_payload(ec, message);
     // println!("payload => {:?}", payload);
+    // TODO: it errors out here. figure out why and make it stop
     if let Err(reason) = stream.try_write(&payload) {
         println!("[ERROR] could not write out to client because: \"{reason}\", attempting to close communication stream");
     }
@@ -241,7 +242,7 @@ async fn recv_loop(configs: config::Config) -> std::io::Result<()> {
 
     let (mut hooks, hook_checking) = if Some(true) == configs.hooks.listen && cfg!(feature = "hooks") {
         let (control_tx, mut control_rx) = tokio::sync::mpsc::channel::<hooks::HookDB>(1);
-        let (cmd_tx, mut cmd_rx) = tokio::sync::mpsc::channel::<msgs::Hook>(1);
+        let (cmd_tx, mut cmd_rx) = tokio::sync::mpsc::channel::<msgs::EventCmd>(1);
         let stop_exec = configs.hooks.exec_ignore.clone();
         let conf_hooks = configs.hooks.hooks.clone();
         // make a runtime dir for auto-desk
@@ -306,18 +307,18 @@ async fn recv_loop(configs: config::Config) -> std::io::Result<()> {
         }
     }
 
-    println!("[LOG] killing listener");
+    println!("[LOG] killing unix socket");
     drop(listener);
-    println!("[LOG] listener killed");
-    println!("[LOG] stopping hooks");
+    println!("[LOG] unix socket killed");
+    println!("[LOG] stopping event listeners");
     if let Some(h_dat) = hooks {
-        let _ = h_dat.cmd.send(msgs::Hook::Exit).await;
+        let _ = h_dat.cmd.send(msgs::EventCmd::Exit).await;
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
     }
     if let Some(hook_checking) = hook_checking {
         hook_checking.abort()
     }
-    println!("[LOG] hooks stopped");
+    println!("[LOG] event listeners stopped");
     Ok(())
 }
 

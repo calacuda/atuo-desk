@@ -28,6 +28,7 @@ fn get_args() -> ArgMatches {
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .subcommand(
             SubCommand::with_name("layout")
+                .about("configure the system with a layout.yaml file")
                 .help("configure the system with a layout.yaml file")
                 .arg(
                     Arg::new("layout")
@@ -41,7 +42,8 @@ fn get_args() -> ArgMatches {
         )
         .subcommand(
             SubCommand::with_name("launch")
-                .help("launch a program")
+                .about("launch a single program")
+                .help("launch a single program")
                 .arg(
                     Arg::new("desktop")
                         .short('d')
@@ -61,10 +63,12 @@ fn get_args() -> ArgMatches {
         )
         .subcommand(
             SubCommand::with_name("start")
+                .about("starts the server")
                 .help("starts the server")
         )
         .subcommand(
             SubCommand::with_name("stop")
+                .about("stops the server and cleans up the file system.")
                 .help("stops the server and cleans up the file system.")
         )
         .get_matches()

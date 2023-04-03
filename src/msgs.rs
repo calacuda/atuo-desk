@@ -1,3 +1,3 @@
-pub enum Hook {
+pub enum EventCmd {
     Exit
 }

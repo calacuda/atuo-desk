@@ -12,6 +12,7 @@ use std::str;
 
 type ErrorCode = u8;
 
+/// entry point to client.rs  when running a subcommand other then "stop"
 pub fn handle_args(args: ArgMatches) {
     // let args = get_args();
     let subargs = args.subcommand().unwrap();
@@ -31,6 +32,7 @@ pub fn handle_args(args: ArgMatches) {
     }
 }
 
+/// entry point to client.rs when running subcommand "stop"
 /// stops the running server and cleans up the file system
 pub async fn stop_server() {
     let configs = match config::get_configs() {
@@ -136,7 +138,8 @@ fn send_data(data: String, server_soc: &str) -> (ErrorCode, String) {
         let response = &response_bytes[1..];
         (ec, response)
     } else {
-        return (0, String::new());
+        println!("[ERROR] server gave no response check server logs.");
+        return (7, String::new());
     };
 
     if ec > 0 {

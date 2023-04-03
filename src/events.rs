@@ -3,6 +3,7 @@ use crate::{
     // MSG_SUCCESS as SUCCESS,
     MSG_DELIM as DELIM
 };
+use procfs::net::TcpState;
 use procfs::process::Process;
 // use tokio::process::Command;
 use tokio::time::{sleep, Duration};
@@ -370,7 +371,7 @@ async fn make_port_context(ports: Vec<Port>) -> Vec<Context> {
     ports.into_iter().map(make_context).collect()
 }
 
-async fn make_port(port_dat: &[&str], stop_execs: &HashSet<String>) -> Option<Port> {
+async fn make_port(port_dat: &[&str], stop_execs: &HashSet<String>, states: &HashMap<String, TcpState>) -> Option<Port> {
     // 0     ,      1         ,      2           ,      3          ,      4            ,       5                    
     // {pid}{DELIM}{local ip}{DELIM}{local port}{DELIM}{remote_ip}{DELIM}{remote port}{DELIM}{INCOMING/OUT-GOING}
     let tmp_pid = port_dat[0];
@@ -397,15 +398,22 @@ async fn make_port(port_dat: &[&str], stop_execs: &HashSet<String>) -> Option<Po
         }
     };
 
+    let lport = port_dat[2].to_string();
     // println!("port shift => {:?}:{:?}", exec, pid);
+
+    let state = if let Some(state) = states.get(&lport) {
+        format!("{:?}", state)
+    } else {
+        String::from("Closed")
+    };
 
     let port = Some(
         Port{ 
             local_addr: port_dat[1].to_string(),
             remote_addr: port_dat[3].to_string(),
-            lport: port_dat[2].to_string(),
+            lport: lport, // port_dat[2].to_string(),
             rport: port_dat[4].to_string(),
-            state: "".to_string(),
+            state: state,
             pid: proc_id,
             exec: executable.clone(),
             // port: port_dat[2].to_string(),
@@ -449,12 +457,20 @@ pub async fn port_change(stop_execs: HashSet<String>, ignore_web: bool, return_t
 
                 let mut parsed_ports = Vec::new();
 
+                let mut all_ports = procfs::net::tcp().unwrap();
+                all_ports.append(&mut procfs::net::tcp6().unwrap());
+                let mut states = HashMap::new(); 
+                for entry in all_ports.into_iter() {
+                    states.insert(format!("{}", entry.local_address.port()), entry.state);
+                }
+                // println!("states => {:?}", states);
+
                 for line in ports.split('\n') {
                     let port_dat: Vec<&str> = line.split(DELIM).collect();  
                     // {error-code}{DELIM}{pid}{DELIM}{local ip}{DELIM}{local port}{DELIM}{remote_ip}{DELIM}{remote port}{DELIM}{INCOMING/OUT-GOING/LOCAL}{DELIM}{index}
                     // eprint!("UID {} => ", port_dat[7]);
                     if line.as_bytes()[0] as char != ERROR {
-                        if let Some(port) = make_port(&port_dat[1..], &stop_execs).await {
+                        if let Some(port) = make_port(&port_dat[1..], &stop_execs, &states).await {
                             // println!("{:?}", port);
                             if (port.con_dir.to_lowercase() != "out-going" || !["80", "443"].contains(&port.rport.as_str())) && ignore_web {
                                 parsed_ports.push(port);
