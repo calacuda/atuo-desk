@@ -165,11 +165,11 @@ async fn open_on_desktop(args: &str) -> u8 {
         }
     };
 
-    // TODO: read config file and get desktop i based on the treating desktop as a name.
+    // TODO: read config file and get desktop i, that way we can treat desktop as a name.
     let desktop = match desktop.parse::<i32>() {
         Ok(i) => format!("{}", i - 1),
         Err(e) => {
-            println!("[ERROR] could not interpret i as a number. got error: {e}");
+            println!("[ERROR] could not interpret  as a number. got error: {e}");
             return 2;
         }
     };
@@ -180,8 +180,7 @@ async fn open_on_desktop(args: &str) -> u8 {
         return tag_switch_ec;
     }
 
-    common::open_program(cmd);
-    0
+    common::open_program(cmd)
 }
 
 async fn focus_on(args: &str) -> u8 {

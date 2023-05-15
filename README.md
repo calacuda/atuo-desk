@@ -62,6 +62,7 @@ see [spec.md](spec.md)
 - [x] write a rofi script to select between layouts.
 - [x] add Qtile support.
 - [x] add leftwm support.
+- [ ] send logs to client and let the client print them as well.
 
 ## development history and schedule
 
