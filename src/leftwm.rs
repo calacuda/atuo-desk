@@ -78,11 +78,17 @@ async fn load_from_yaml(layouts: Vec<wm_lib::DesktopLayout>) -> u8 {
                 vec![2]
             }
         };
-        for ec in err_codes {
-            if ec > 0 {
-                return ec;
-            }
+        
+        let non_err_codes: Vec<u8> = err_codes.into_iter().filter(|ec| ec > &0).collect();
+        
+        if !non_err_codes.is_empty() {
+            return non_err_codes[0];
         }
+        // for ec in err_codes {
+        //     if ec > 0 {
+        //         return ec;
+        //     }
+        // }
     }
 
     0
@@ -124,11 +130,23 @@ async fn set_up_desktop(desktop_name: &str, programs: &Vec<wm_lib::Program>) -> 
     ecs
 }
 
+/// takes a program name and some arguments and returns a formatted shell command.  
+fn make_cmd(prog_name: &str, args: &Option<Vec<String>>) -> String {
+    // format!("{}{}", prog_name, comp_args(&args.clone().unwrap_or_default()))
+    let mut tokens = vec![String::from(prog_name)];
+
+    if let Some(mut args) = args.clone() {
+        tokens.append(&mut args);
+    }
+
+    tokens.join(" ")
+}
+
 fn get_progs(programs: &Vec<wm_lib::Program>) -> Vec<(String, Option<u8>)> {
     let mut progs = Vec::new();
 
     for prog in programs {
-        progs.push((prog.name.clone(), prog.delay));
+        progs.push((make_cmd(&prog.name, &prog.args), prog.delay));
     }
 
     progs
