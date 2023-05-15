@@ -79,16 +79,11 @@ async fn load_from_yaml(layouts: Vec<wm_lib::DesktopLayout>) -> u8 {
             }
         };
         
-        let non_err_codes: Vec<u8> = err_codes.into_iter().filter(|ec| ec > &0).collect();
+        let non_zero_err_codes: Vec<u8> = err_codes.into_iter().filter(|ec| ec > &0).collect();
         
-        if !non_err_codes.is_empty() {
-            return non_err_codes[0];
+        if !non_zero_err_codes.is_empty() {
+            return non_zero_err_codes[0];
         }
-        // for ec in err_codes {
-        //     if ec > 0 {
-        //         return ec;
-        //     }
-        // }
     }
 
     0
