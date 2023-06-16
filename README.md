@@ -63,6 +63,7 @@ see [spec.md](spec.md)
 - [x] add Qtile support.
 - [x] add leftwm support.
 - [ ] send logs to client and let the client print them as well.
+- [ ] add a `commands` list to the config file. this will be a list of commands to run when the layout is loaded. these commadns should be headless shell commands (commands that do not launch a gui of any sort).
 
 ## development history and schedule
 
