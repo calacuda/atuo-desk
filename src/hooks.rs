@@ -53,6 +53,7 @@ impl HookDB {
 
     fn add_hook(&mut self, hook: config::Hook) -> Result<(), ()> {
         let hook_id = self.next_uid;
+        // TODO: make this use an enum, not static str. (why isn't this already the case)
         match hook.event.as_str() {
             "wifi-network-change" => self.wifi_net.push(hook_id),
             "network-toggle" => self.net_con.push(hook_id),

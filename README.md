@@ -1,5 +1,7 @@
 # desktop-automater
+
 ---
+
 Controls Linux tiling window managers and desktop environments. It uses Unix sockets to handle communication with the client program. Development is currently focused on the tiling window manager [LeftWM](https://leftwm.org/).
 
 ---
@@ -10,17 +12,31 @@ Desktop automator designed to allow programmatic control of the desktop environm
 
 ## advantages
 
-- configuring of [layouts](#layouts) that can be set up with ease. 
-- consistent API and endpoint makes controlling the system and some programs easy.
-- it's programmatic so you can write your own scripts to control the WM/DE and some common programs.
+- configuring of [layouts](#layouts) that can be done with ease.
+- consistent API and endpoint makes controlling the system easy.
+- simple programatic API so you can write your own scripts to control the WM/DE and system.
+- consistant across different WM and DE allowinf one script to work across mutiple enviornemnts.
+- checks for system [events](#event hooks) allowing you to hook your own commands to run when the system state changes.
 
 ## layouts
 
 layouts allow for opening apps on specific workspaces, and optionally clearing that workspace. They also allow for running of arbitrary commands and will soon have the ability to tear them selfs down.
 
+## event hooks
+
+Event hooks allow you to have you own programs or commands run on system events or system state chagnes.
+these events include:
+
+- wifi network changes
+- bluetooth device connection/disconnection
+- USB device connection/disconnection
+- network port status change
+- network connection/disconnection
+
 ## Suported Window Managers
-- [BSPWM](https://github.com/baskerville/bspwm) (old support but *should* still work)
-- [Qtile](http://www.qtile.org/) (old support but *should* still work)
+
+- [BSPWM](https://github.com/baskerville/bspwm) (support is old but _should_ still work)
+- [Qtile](http://www.qtile.org/) (support is old but _should_ still work)
 - [LeftWM](https://leftwm.org/) (tested and working as intended)
 
 ## documentation
@@ -30,22 +46,32 @@ see [spec.md](spec.md)
 ## dependencies
 
 - systemd
-- loginctl 
+- loginctl
 - alsa
-- playerctl 
+- playerctl
 - xbacklight
 - xrandr
 - gtk-launch
 - xdotool
 
+## currnet state
+
+I would describe the currnet state as development but good enough for bassic usage.
+
+## port status
+
+There is a temporary solution for detecting changes in port status for event hooks. However, **I DO NOT LIKE THIS SOLUTION AND IT IS TEMPORARY** as it is a combersum, cobled together from popsicle sticks and chewing gum, and just over all not a great solution. I'm using it because is is FAR more efficiant and much less resource heavy compared to the naive solution -- that is to say, checking port status in an infinate loop and comparing results. It relies on [ftrace](https://www.kernel.org/doc/html/v4.18/trace/ftrace.html) (a linux kernal module to track/trace kenral and system function calls). I indend to change this in the furture but for now, it works well enough for testing.
+
 ## planned features/ideas for the future
+
 (ideas the distant future/things I'm considering adding)
 
 - [x] 1. write a [Mycroft](https://mycroft-ai.gitbook.io/docs/) skill to add voice control
 - [x] 2. write a rofi script to search through and select layouts.
-- [ ] 3. add a "procedure", feature. it will be a list of command to run and will be able to be acivated from a layout files or by its self.  
+- [ ] 3. add a "procedure", feature. it will be a list of command to run and will be able to be acivated from a layout files or by its self.
 
 ## TODOs
+
 (things planned for the immediate/foreseeable future)
 
 - [ ] change between full screen, tiled, floating, and pseudo_tiled.
@@ -75,5 +101,5 @@ see [spec.md](spec.md)
 - [x] 6. add python module to be imported from qtile conf.
 - [x] 7. add leftwm suport.
 - [x] 8. write rofi layout script. ([repo]())
-- [ ] 9. finish port sensor. <= we are working on this. (everything below this is subject to change) 
+- [ ] 9. finish port sensor. <= we are working on this. (everything below this is subject to change)
 - [ ] 10. add finishing touches to bspwm support.
