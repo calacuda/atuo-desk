@@ -1,4 +1,6 @@
 ---
+# what the desktops should be setup like
+desktops:
   - desktop: 10
     programs:
       - name: kitty
@@ -17,3 +19,10 @@
   - desktop: 7
     programs:
       - name: brave
+
+# what work space should be set to what desktop
+workspaces:
+  # Workspace: desktop
+  0: 1
+  1: 0
+  2: 2

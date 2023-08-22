@@ -46,7 +46,7 @@ async fn load_layout(args: &str) -> u8 {
         Err(n) => return n,
     };
 
-    load_from_yaml(layout_yaml).await
+    load_from_yaml(layout_yaml.desktops).await
 }
 
 async fn load_from_yaml(layouts: Vec<wm_lib::DesktopLayout>) -> u8 {

@@ -90,9 +90,11 @@ fn load_layout(spath: &str, args: &str) -> u8 {
     //     4
     // };
 
-    let error_code = load_from_yaml(layout_yaml, spath);
+    let error_code = load_from_yaml(layout_yaml.desktops, spath);
 
     send(spath, "config ignore_ewmh_focus false");
+
+    // TODO: set workspaces to desktops
 
     error_code
 }

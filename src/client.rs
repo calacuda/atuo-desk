@@ -199,10 +199,10 @@ fn handle_launch(args: ArgMatches, server_soc: String) {
 //      * finds the desired layout file either in the layout dir, cwd, or the path provided.
 //      */
 //     let paths = vec![
-//         format!("~/.config/desktop-automater/layouts/{}.yml", fname),
-//         format!("~/.config/desktop-automater/layouts/{}.yaml", fname),
+//         format!("~/.config/auto-desk/layouts/{}.yml", fname),
+//         format!("~/.config/auto-desk/layouts/{}.yaml", fname),
 //         fname.clone(),
-//         format!("~/.config/desktop-automater/layouts/{}", fname),
+//         format!("~/.config/auto-desk/layouts/{}", fname),
 //     ];
 //
 //     for fp in paths

@@ -191,7 +191,7 @@ pub fn make_cmd_data(fname: &str) -> Result<QtileCmdData, u8> {
 
     let mut payload_struc = QtileCmdData::new();        
     
-    for desktop in layouts {
+    for desktop in layouts.desktops {
         for program in &desktop.programs {
             match &program.wm_class {
                 Some(class) => {
@@ -231,6 +231,8 @@ pub async fn load_layout(spath: &str, args: &str) -> u8 {
             common::open_program(&program);
         }
     }
+
+    // TODO: set workspaces to desktops
     
     if clear_res > 0 {
         println!("failed to clear, got error: {}", clear_res);

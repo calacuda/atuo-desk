@@ -9,7 +9,7 @@ pub const PORT_PIPE: &str = "auto-desk.ports";
 #[derive(Deserialize, Clone)]
 pub struct Config {
     pub server: Server,
-    pub hooks: Hooks
+    pub hooks: Hooks,
 }
 
 #[derive(Deserialize, Clone)]
@@ -28,14 +28,14 @@ pub struct Hooks {
 
 #[derive(Deserialize, Clone, Debug)]
 pub struct Hook {
-    pub event: String,  // TODO: see if i can make this an enum
+    pub event: String, // TODO: see if i can make this an enum
     pub exec: String,
 }
 
 pub type GenericRes = (u8, Option<String>);
 pub type OptGenRes = Option<GenericRes>;
 
-const CONFIG_FILE: &str = "~/.config/desktop-automater/config.toml";
+const CONFIG_FILE: &str = "~/.config/auto-desk/config.toml";
 
 pub fn get_configs() -> Result<Config, std::io::Error> {
     let fname = shellexpand::tilde(CONFIG_FILE).to_string();
@@ -72,7 +72,7 @@ pub fn get_pipe_d() -> String {
     //     }
     //     Err(e) => {
     //         let uid = users::get_current_uid();
-    //         format!("/run/user/{uid}/auto-desk") 
+    //         format!("/run/user/{uid}/auto-desk")
     //         // Err(format!("{e}")),
     //     }
     // }
@@ -82,3 +82,4 @@ pub fn get_pipe_d() -> String {
 pub fn get_pipe_f() -> String {
     format!("{}/{PORT_PIPE}", get_pipe_d())
 }
+

@@ -115,7 +115,7 @@ def main():
 
 
 if __name__=="__main__":
-    CONFIG = get_config("~/.config/desktop-automater/config.ini")
+    CONFIG = get_config("~/.config/auto-desk/config.ini")
 
     PROG_SOCK = CONFIG['SERVER']['program-socket']
     BSPWM_SOCK = CONFIG['SERVER']['bspwm-socket']
