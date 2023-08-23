@@ -4,8 +4,8 @@
 Description=desktop-automater
 
 [Service]
-ExecStart=%h/.cargo/bin/auto-desk start
-ExecStop=%h/.cargo/bin/auto-desk stop
+ExecStart=auto-desk start
+ExecStop=auto-desk stop
 
 [Install]
 WantedBy=multi-user.target
