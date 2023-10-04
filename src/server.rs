@@ -1,18 +1,17 @@
+use crate::bspwm;
+use crate::common;
+use crate::config;
+use crate::config::{GenericRes, OptGenRes};
+use crate::hooks;
+use crate::leftwm;
+use crate::msgs;
+use crate::qtile;
+use futures::future::BoxFuture;
 use std::fs::create_dir;
 use sysinfo::{ProcessExt, System, SystemExt};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{UnixListener, UnixStream};
 use tokio::task;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use futures::future::BoxFuture;
-use crate::config::{GenericRes, OptGenRes};
-use crate::config;
-use crate::common;
-use crate::qtile;
-use crate::bspwm;
-use crate::leftwm;
-use crate::hooks;
-use crate::msgs;
-
 
 enum WindowManager {
     Qtile,
@@ -23,7 +22,7 @@ enum WindowManager {
 }
 
 fn make_payload(ec: u8, message: Option<String>) -> Vec<u8> {
-    let mut payload = vec![ec, if ec > 0 {7} else {0}];
+    let mut payload = vec![ec, if ec > 0 { 7 } else { 0 }];
     if let Some(mesg) = message {
         // println!("making payload with message {mesg}");
         payload.append(&mut mesg.as_bytes().to_vec());
@@ -54,12 +53,13 @@ async fn write_shutdown(stream: &mut UnixStream, ec: u8, message: Option<String>
     // println!("message => {:?}", message);
     let payload = make_payload(ec, message);
     // println!("payload => {:?}", payload);
-    // TODO: it errors out here. figure out why and make it stop
     if let Err(reason) = stream.try_write(&payload) {
         println!("[ERROR] could not write out to client because: \"{reason}\", attempting to close communication stream");
     }
     if let Err(reason) = stream.shutdown().await {
-        println!("[ERROR] could not shutdown after write because: \"{reason}\", client will likely hang");
+        println!(
+            "[ERROR] could not shutdown after write because: \"{reason}\", client will likely hang"
+        );
     };
 }
 
@@ -67,23 +67,20 @@ async fn read_command(stream: &mut UnixStream) -> String {
     let mut command = String::new();
     // stream.set_nonblocking(false);
     let _ = stream.read_to_string(&mut command).await;
-    if let Err(reason) = stream.shutdown().await {
-        println!("[ERROR] could not read command from client, could not shutdown stream because {reason}");
-    }
     command
 }
 
 async fn switch_board<'t>(
     wm: &WindowManager,
-    cmd: &'t str, 
-    args: &'t str, 
-    spath: &'t str, 
-    maybe_hook_data: &'t mut Option<hooks::HookData>
+    cmd: &'t str,
+    args: &'t str,
+    spath: &'t str,
+    maybe_hook_data: &'t mut Option<hooks::HookData>,
 ) -> GenericRes {
     let mut futures: Vec<BoxFuture<'t, OptGenRes>> = Vec::new();
     // let mut futures: Vec<SwitchBoardFuture> = Vec::new();
 
-    match wm { 
+    match wm {
         WindowManager::Qtile => {
             #[cfg(feature = "qtile")]
             futures.push(Box::pin(qtile::qtile_switch(cmd, args, spath)));
@@ -97,8 +94,7 @@ async fn switch_board<'t>(
             futures.push(Box::pin(leftwm::leftwm_switch(cmd, args)));
             // futures.push(Box::pin(leftwm::leftwm_switch(cmd, args, spath)));
         }
-        WindowManager::Headless |
-        WindowManager::NoWM => {}
+        WindowManager::Headless | WindowManager::NoWM => {}
     }
     // common should be checked last.
     #[cfg(feature = "common")]
@@ -109,18 +105,20 @@ async fn switch_board<'t>(
     futures.push(Box::pin(common::media_switch(cmd, args)));
     #[cfg(feature = "hooks")]
     futures.push(Box::pin(hooks::hooks_switch(cmd, args, maybe_hook_data)));
-    
 
     for future in futures {
         if let Some(res) = future.await {
-            return res
+            return res;
         }
     }
 
-    (1, Some(format!("there is now command by the name of, {cmd}")))
+    (
+        1,
+        Some(format!("there is now command by the name of, {cmd}")),
+    )
 }
 
-fn split_cmd(command: &str) -> (String, String){
+fn split_cmd(command: &str) -> (String, String) {
     match command.split_once(' ') {
         Some((cmd, args)) => (cmd.to_owned(), args.to_owned()),
         None => (command.to_owned(), String::new()),
@@ -132,16 +130,16 @@ async fn handle_client_gen(
     cmd: String,
     args: String,
     wm: &WindowManager,
-    hooks: &mut Option<hooks::HookData>, 
-    // _config_hooks: &config::Hooks, 
-    mut stream: UnixStream, 
-    spath: &str
+    hooks: &mut Option<hooks::HookData>,
+    // _config_hooks: &config::Hooks,
+    mut stream: UnixStream,
+    spath: &str,
 ) {
     // handle comand here
     let (ec, message) = switch_board(wm, &cmd, &args, spath, hooks).await;
     // let mesg = match message {
     //     Some(mesg) => mesg,
-    //     None => 
+    //     None =>
     // };
     write_shutdown(&mut stream, ec, message).await;
     drop(stream)
@@ -152,8 +150,8 @@ async fn handle_client_qtile(
     cmd: String,
     args: String,
     wm: &WindowManager,
-    mut stream: UnixStream, 
-    layout: &mut Option<qtile::QtileCmdData>, 
+    mut stream: UnixStream,
+    layout: &mut Option<qtile::QtileCmdData>,
     hook_data: &mut Option<hooks::HookData>,
     wm_socket: &str,
 ) -> Option<qtile::QtileCmdData> {
@@ -164,7 +162,7 @@ async fn handle_client_qtile(
             write_shutdown(&mut stream, 0, Some("configured layout".to_string())).await;
             drop(stream);
             Some(new_layout)
-        },
+        }
         Some(qtile::QtileAPI::Message(message)) => {
             println!("[LOG] handle_qtile_client => Message");
             println!("[DEBUG] sending message => {message}");
@@ -210,7 +208,7 @@ fn get_running_wm() -> WindowManager {
             // println!("[DEV_DEBUG] qtile_socket_fname => {qtile_soc_fname}");
 
             // if Path::new(&qtile_soc_fname).exists() {
-            if is_wm_running(&procs,"qtile", "qtile") {
+            if is_wm_running(&procs, "qtile", "qtile") {
                 println!("[LOG] Running in Qtile mode");
                 WindowManager::Qtile
             // } else if Path::new("/tmp/bspwm_0_0-socket").exists() {
@@ -218,14 +216,14 @@ fn get_running_wm() -> WindowManager {
                 println!("[LOG] Running in BSPWM mode");
                 WindowManager::Bspwm
             // } else if leftwm::get_cmd_file() != None {
-            } else if is_wm_running(&procs,"leftwm", "leftwm") {
+            } else if is_wm_running(&procs, "leftwm", "leftwm") {
                 println!("[LOG] Running in leftwm mode");
                 WindowManager::LeftWM
             } else {
                 WindowManager::Headless
             }
         }
-        _ => WindowManager::NoWM, 
+        _ => WindowManager::NoWM,
     }
 }
 
@@ -240,21 +238,36 @@ async fn recv_loop(configs: config::Config) -> std::io::Result<()> {
     // #[cfg(feature = "qtile")]  // make this compile for all features?
     let mut layout: Option<qtile::QtileCmdData> = None;
 
-    let (mut hooks, hook_checking) = if Some(true) == configs.hooks.listen && cfg!(feature = "hooks") {
-        let (control_tx, mut control_rx) = tokio::sync::mpsc::channel::<hooks::HookDB>(1);
-        let (cmd_tx, mut cmd_rx) = tokio::sync::mpsc::channel::<msgs::EventCmd>(1);
-        let stop_exec = configs.hooks.exec_ignore.clone();
-        let conf_hooks = configs.hooks.hooks.clone();
-        // make a runtime dir for auto-desk
-        let _ = create_dir(config::get_pipe_d());
-        let hook_checking = task::spawn( async move {
-            hooks::check_even_hooks(&mut control_rx, &mut cmd_rx, stop_exec, conf_hooks, configs.hooks.ignore_web).await;
-        });
-        let hooks_db = hooks::HookDB::new();
-        (Some(hooks::HookData { send: control_tx, cmd: cmd_tx, db: hooks_db }), Some(hook_checking))
-    } else {
-        (None, None)
-    };
+    let (mut hooks, hook_checking) =
+        if Some(true) == configs.hooks.listen && cfg!(feature = "hooks") {
+            let (control_tx, mut control_rx) = tokio::sync::mpsc::channel::<hooks::HookDB>(1);
+            let (cmd_tx, mut cmd_rx) = tokio::sync::mpsc::channel::<msgs::EventCmd>(1);
+            let stop_exec = configs.hooks.exec_ignore.clone();
+            let conf_hooks = configs.hooks.hooks.clone();
+            // make a runtime dir for auto-desk
+            let _ = create_dir(config::get_pipe_d());
+            let hook_checking = task::spawn(async move {
+                hooks::check_even_hooks(
+                    &mut control_rx,
+                    &mut cmd_rx,
+                    stop_exec,
+                    conf_hooks,
+                    configs.hooks.ignore_web,
+                )
+                .await;
+            });
+            let hooks_db = hooks::HookDB::new();
+            (
+                Some(hooks::HookData {
+                    send: control_tx,
+                    cmd: cmd_tx,
+                    db: hooks_db,
+                }),
+                Some(hook_checking),
+            )
+        } else {
+            (None, None)
+        };
 
     let wm = get_running_wm();
 
@@ -273,22 +286,30 @@ async fn recv_loop(configs: config::Config) -> std::io::Result<()> {
                     WindowManager::Qtile => {
                         // #[cfg(feature = "qtile")]
                         // TODO: implement "SERVER-STOP" check.
-                        if let Some(lo) =  handle_client_qtile(cmd, args, &wm, stream, &mut layout, &mut hooks, wm_socket).await {
+                        if let Some(lo) = handle_client_qtile(
+                            cmd,
+                            args,
+                            &wm,
+                            stream,
+                            &mut layout,
+                            &mut hooks,
+                            wm_socket,
+                        )
+                        .await
+                        {
                             layout = Some(lo.clone());
                             println!("[DEBUG] layout: {:?}", lo);
-                            task::spawn(
-                                async move {
-                                    for program in lo.queue {
-                                        common::open_program(&program);
-                                    }
+                            task::spawn(async move {
+                                for program in lo.queue {
+                                    common::open_program(&program);
                                 }
-                            );
+                            });
                         }
                     }
-                    WindowManager::Bspwm | 
-                    WindowManager::LeftWM |
-                    WindowManager::Headless |
-                    WindowManager::NoWM => {
+                    WindowManager::Bspwm
+                    | WindowManager::LeftWM
+                    | WindowManager::Headless
+                    | WindowManager::NoWM => {
                         // #[cfg(not(feature = "qtile"))]
                         {
                             // let tmp_wms = wm_socket.to_string();
@@ -330,10 +351,13 @@ fn clear_sockets(prog_so: &str) {
             println!("[LOG] clearing socker file at {:?}", path);
             if let Err(e) = std::fs::remove_file(path)
             // .unwrap_or_else(|e|
-                {
-                    println!("[ERROR] could not delete previous socket at {:?}\ngot error:\n{}", &path, e);
-                    // panic!(""); 
-                }
+            {
+                println!(
+                    "[ERROR] could not delete previous socket at {:?}\ngot error:\n{}",
+                    &path, e
+                );
+                // panic!("");
+            }
             // )
         }
     }

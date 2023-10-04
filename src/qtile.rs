@@ -1,14 +1,14 @@
+use crate::common;
+use crate::config::OptGenRes;
+use crate::wm_lib;
+use serde::{Deserialize, Serialize};
+use serde_json;
 use std::collections::HashMap;
 use std::io::Read;
 use std::io::Write;
 use std::net::Shutdown;
 use std::os::unix::net::UnixStream;
-use crate::wm_lib;
-use serde::{Deserialize, Serialize};
-use serde_json;
 use tokio::time::{sleep, Duration};
-use crate::common;
-use crate::config::OptGenRes;
 
 const NULL: char = 0 as char;
 
@@ -18,7 +18,6 @@ type Desktops = HashMap<Desktop, bool>;
 type Exe = String;
 type Programs = Vec<Exe>;
 type Rules = HashMap<WMClass, Vec<Desktop>>;
-
 
 pub enum QtileAPI {
     Layout(QtileCmdData),
@@ -52,17 +51,17 @@ impl QtileCmdData {
     }
 
     fn add_queue(&mut self, program: &str, args: &Option<Vec<String>>) {
-        self.queue.push(
-            match args {
-                Some(args) => format!("{program} {}", args.join(" ")),
-                None => program.to_string()
-            }
-        );
+        self.queue.push(match args {
+            Some(args) => format!("{program} {}", args.join(" ")),
+            None => program.to_string(),
+        });
     }
 
     fn add_rules(&mut self, wmc: &str, desktop: &str) {
         match self.rules.get_mut(wmc) {
-            Some(rules) => {rules.push(desktop.to_string());},
+            Some(rules) => {
+                rules.push(desktop.to_string());
+            }
             None => {
                 let set = vec![desktop.to_string()];
                 self.rules.insert(wmc.to_string(), set);
@@ -74,14 +73,14 @@ impl QtileCmdData {
         // println!("wm_class :  {wm_class}, rules :  {:?}", self.rules);
         match self.rules.get_mut(wm_class) {
             Some(desktops) => desktops.pop(),
-            None => None
+            None => None,
         }
     }
 
     fn get_location(&mut self, wm_classes: (&str, &str)) -> Option<String> {
         match self.get_location_helper(wm_classes.0) {
             Some(location) => Some(location),
-            None =>  self.get_location_helper(wm_classes.1),
+            None => self.get_location_helper(wm_classes.1),
         }
     }
 
@@ -123,8 +122,8 @@ pub fn auto_move(args: &str, layout: &mut Option<QtileCmdData>) -> Result<Option
         Some(lo) => lo,
         None => {
             println!("[DEBUG] no layout provided.");
-            return Ok(None)
-        },
+            return Ok(None);
+        }
     };
     let arguments = args.splitn(2, ' ').collect::<Vec<&str>>();
     if arguments.len() != 2 {
@@ -139,24 +138,29 @@ pub fn auto_move(args: &str, layout: &mut Option<QtileCmdData>) -> Result<Option
         Some(location) => location,
         None => {
             println!("[DEBUG] wm_class not in layout.");
-            return Ok(None)
+            return Ok(None);
         }
     };
 
-    println!("[DEBUG] moving window with class: {:?} to location: {location}, will be handled by qtile.", wm_classes);
+    println!(
+        "[DEBUG] moving window with class: {:?} to location: {location}, will be handled by qtile.",
+        wm_classes
+    );
     Ok(Some(location))
 }
 
 /// open-at
 pub fn open_on_desktop(spath: &str, args: &str) -> u8 {
     let data = args.split(' ').collect::<Vec<&str>>();
-    
+
     if data.len() != 3 {
-        return 7
+        return 7;
     }
 
     let (exe, wm_class, desktop) = (data[0], data[1], data[2]);
-    let payload = format!("load{NULL}{{\"rules\": {{ \"{wm_class}\": [\"{desktop}\"]}}, \"queue\": [\"{exe}\"] }}");
+    let payload = format!(
+        "load{NULL}{{\"rules\": {{ \"{wm_class}\": [\"{desktop}\"]}}, \"queue\": [\"{exe}\"] }}"
+    );
 
     println!("payload => {}", payload);
 
@@ -189,8 +193,8 @@ pub fn make_cmd_data(fname: &str) -> Result<QtileCmdData, u8> {
         Err(n) => return Err(n),
     };
 
-    let mut payload_struc = QtileCmdData::new();        
-    
+    let mut payload_struc = QtileCmdData::new();
+
     for desktop in layouts.desktops {
         for program in &desktop.programs {
             match &program.wm_class {
@@ -198,7 +202,10 @@ pub fn make_cmd_data(fname: &str) -> Result<QtileCmdData, u8> {
                     payload_struc.add_rules(class, &desktop.desktop);
                     payload_struc.add_queue(&program.name, &program.args);
                 }
-                None => println!("no wm_class defined for {} in the layout file. could not setup or launch.", program.name),
+                None => println!(
+                    "no wm_class defined for {} in the layout file. could not setup or launch.",
+                    program.name
+                ),
             }
         }
         payload_struc.add_clear(desktop.clear, &desktop.desktop);
@@ -215,17 +222,17 @@ pub async fn load_layout(spath: &str, args: &str) -> u8 {
 
     let (payload, programs) = match make_payload(args) {
         Ok(payload) => payload,
-        Err(ec) => return ec, 
+        Err(ec) => return ec,
     };
 
     // println!("payload => {}", payload);
-    
+
     let load_res = qtile_send(payload, spath);
     // thread::sleep(time::Duration::from_millis(20));
     let clear_res = qtile_send("clear".to_string(), spath);
 
-    sleep(Duration::from_millis(500)).await;  // TODO: try commenting this out and/or lowering the time.
-    
+    sleep(Duration::from_millis(500)).await; // TODO: try commenting this out and/or lowering the time.
+
     if load_res == 0 {
         for program in programs {
             common::open_program(&program);
@@ -233,7 +240,7 @@ pub async fn load_layout(spath: &str, args: &str) -> u8 {
     }
 
     // TODO: set workspaces to desktops
-    
+
     if clear_res > 0 {
         println!("failed to clear, got error: {}", clear_res);
         3
@@ -244,7 +251,7 @@ pub async fn load_layout(spath: &str, args: &str) -> u8 {
     }
 }
 
-fn make_payload(fname: &str) -> Result<(String, Vec<String>), u8>  {
+fn make_payload(fname: &str) -> Result<(String, Vec<String>), u8> {
     let payload_struc = make_cmd_data(fname)?;
 
     match serde_json::to_string(&payload_struc) {
@@ -296,11 +303,10 @@ fn qtile_send(payload: String, spath: &str) -> u8 {
                 5
             }
         }
-    }
-    else {
+    } else {
         println!("[ERROR] The qtile python api didn't respond. It most likely crashed. Pls reload it and try again.");
         6
-    }    
+    }
 }
 
 pub async fn qtile_switch(cmd: &str, args: &str, spath: &str) -> OptGenRes {
@@ -314,30 +320,31 @@ pub async fn qtile_switch(cmd: &str, args: &str, spath: &str) -> OptGenRes {
 }
 
 pub async fn qtile_api(
-    cmd: &str, 
-    args: &str, 
-    layout: &mut Option<QtileCmdData>
+    cmd: &str,
+    args: &str,
+    layout: &mut Option<QtileCmdData>,
 ) -> Option<QtileAPI> {
     match cmd {
-        "load-layout" => {
-            match make_cmd_data(args) {
-                Ok(layout) => Some(QtileAPI::Layout(layout)),
-                Err(ec) => Some(QtileAPI::Res(ec)),
-            }
-        }
-        "auto-move" => Some(
-            match auto_move(args, layout) {
-                Ok(Some(loc)) => QtileAPI::Message(loc),
-                Ok(None) => QtileAPI::Res(0), 
-                Err(ec) => QtileAPI::Res(ec),
-            }
-        ),
-        "should-clear" => Some(
-            match should_clear(args, layout) {
-                Ok(to_clear_or_not_to_clear) => QtileAPI::Message(if to_clear_or_not_to_clear {"true"} else {"false"}.to_string()), // that is the question
-                Err(ec) => QtileAPI::Res(ec),
-            }
-        ),
+        "load-layout" => match make_cmd_data(args) {
+            Ok(layout) => Some(QtileAPI::Layout(layout)),
+            Err(ec) => Some(QtileAPI::Res(ec)),
+        },
+        "auto-move" => Some(match auto_move(args, layout) {
+            Ok(Some(loc)) => QtileAPI::Message(loc),
+            Ok(None) => QtileAPI::Res(0),
+            Err(ec) => QtileAPI::Res(ec),
+        }),
+        "should-clear" => Some(match should_clear(args, layout) {
+            Ok(to_clear_or_not_to_clear) => QtileAPI::Message(
+                if to_clear_or_not_to_clear {
+                    "true"
+                } else {
+                    "false"
+                }
+                .to_string(),
+            ), // that is the question
+            Err(ec) => QtileAPI::Res(ec),
+        }),
         _ => None,
     }
 }

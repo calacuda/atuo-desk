@@ -60,7 +60,7 @@ I would describe the currnet state as development but good enough for bassic usa
 
 ## port status
 
-There is a temporary solution for detecting changes in port status for event hooks. However, **I DO NOT LIKE THIS SOLUTION AND IT IS TEMPORARY** as it is a combersum, cobled together from popsicle sticks and chewing gum, and just over all not a great solution. I'm using it because is is FAR more efficiant and much less resource heavy compared to the naive solution -- that is to say, checking port status in an infinate loop and comparing results. It relies on [ftrace](https://www.kernel.org/doc/html/v4.18/trace/ftrace.html) (a linux kernal module to track/trace kenral and system function calls). I indend to change this in the furture but for now, it works well enough for testing.
+There is a temporary solution for detecting changes in port status for event hooks. However, **I DO NOT LIKE THIS SOLUTION AND IT IS TEMPORARY** as it is a combersum, cobled together from popsicle sticks and chewing gum, and just over all not a great solution. I'm using it because is is FAR more resource efficient compared to the naive solution -- that is to say, checking port status in an infinite loop and comparing results. It relies on [ftrace](https://www.kernel.org/doc/html/v4.18/trace/ftrace.html) (a linux kernel module to track/trace kernel and system function calls). I intend to change this in the future but for now, it works well enough for testing.
 
 ## planned features/ideas for the future
 
