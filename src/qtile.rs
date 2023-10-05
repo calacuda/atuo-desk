@@ -4,13 +4,6 @@ use crate::wm_lib;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;
-use std::io::Read;
-use std::io::Write;
-use std::net::Shutdown;
-use std::os::unix::net::UnixStream;
-use tokio::time::{sleep, Duration};
-
-const NULL: char = 0 as char;
 
 type WMClass = String;
 type Desktop = String;
@@ -34,7 +27,7 @@ pub struct QtileCmdData {
 }
 
 impl QtileCmdData {
-    fn new() -> QtileCmdData {
+    pub fn new() -> QtileCmdData {
         QtileCmdData {
             rules: HashMap::new(),
             queue: Vec::new(),
@@ -97,11 +90,11 @@ impl QtileCmdData {
 //     0
 // }
 
-pub fn should_clear(args: &str, layout: &mut Option<QtileCmdData>) -> Result<bool, u8> {
-    let tmp_layout = match layout {
-        Some(lo) => lo,
-        None => return Ok(false),
-    };
+pub fn should_clear(args: &str, layout: &mut QtileCmdData) -> Result<bool, u8> {
+    // let tmp_layout = match layout {
+    //     Some(lo) => lo,
+    //     None => return Ok(false),
+    // };
 
     let arguments: Vec<&str> = args.split_ascii_whitespace().collect();
     let location = if arguments.len() == 1 {
@@ -110,21 +103,21 @@ pub fn should_clear(args: &str, layout: &mut Option<QtileCmdData>) -> Result<boo
         return Err(7);
     };
 
-    let clearing = tmp_layout.should_clear(location);
+    let clearing = layout.should_clear(location);
     Ok(clearing)
 }
 
-pub fn auto_move(args: &str, layout: &mut Option<QtileCmdData>) -> Result<Option<String>, u8> {
+pub fn auto_move(args: &str, layout: &mut QtileCmdData) -> Result<Option<String>, u8> {
     // println!("auto-move");
     // println!("args => {}", args);
     // println!("layout => {:?}", layout);
-    let tmp_layout = match layout {
-        Some(lo) => lo,
-        None => {
-            println!("[DEBUG] no layout provided.");
-            return Ok(None);
-        }
-    };
+    // let tmp_layout = match layout {
+    //     Some(lo) => lo,
+    //     None => {
+    //         println!("[DEBUG] no layout provided.");
+    //         return Ok(None);
+    //     }
+    // };
     let arguments = args.splitn(2, ' ').collect::<Vec<&str>>();
     if arguments.len() != 2 {
         println!("[ERROR] wrong number of arguments, {}", arguments.len());
@@ -134,7 +127,7 @@ pub fn auto_move(args: &str, layout: &mut Option<QtileCmdData>) -> Result<Option
     let wm_classes = (arguments[0], arguments[1]);
     println!("[DEBUG] wm_classes: {:?}", wm_classes);
 
-    let location = match tmp_layout.get_location(wm_classes) {
+    let location = match layout.get_location(wm_classes) {
         Some(location) => location,
         None => {
             println!("[DEBUG] wm_class not in layout.");
@@ -150,7 +143,7 @@ pub fn auto_move(args: &str, layout: &mut Option<QtileCmdData>) -> Result<Option
 }
 
 /// open-at
-pub fn open_on_desktop(spath: &str, args: &str) -> u8 {
+pub fn open_on_desktop(_spath: &str, args: &str, layout: &mut QtileCmdData) -> u8 {
     let data = args.split(' ').collect::<Vec<&str>>();
 
     if data.len() != 3 {
@@ -158,25 +151,31 @@ pub fn open_on_desktop(spath: &str, args: &str) -> u8 {
     }
 
     let (exe, wm_class, desktop) = (data[0], data[1], data[2]);
-    let payload = format!(
-        "load{NULL}{{\"rules\": {{ \"{wm_class}\": [\"{desktop}\"]}}, \"queue\": [\"{exe}\"] }}"
-    );
+    // let payload = format!(
+    //     "load{NULL}{{\"rules\": {{ \"{wm_class}\": [\"{desktop}\"]}}, \"queue\": [\"{exe}\"] }}"
+    // );
 
-    println!("payload => {}", payload);
+    layout.add_rules(wm_class, desktop);
+    // let payload = format!("ot-layout {wm_class} {desktop}");
 
-    let load_res = qtile_send(payload, spath);
+    // println!("payload => {}", payload);
+
+    // let load_res = qtile_send(payload, spath);
+    // println!("load_res => {load_res}");
     // thread::sleep(time::Duration::from_millis(20));
-    let clear_res = qtile_send("clear".to_string(), spath);
+    // let clear_res = qtile_send("clear".to_string(), spath);
     common::open_program(exe);
-    if clear_res > 0 {
-        println!("failed to clear, got error: {}", clear_res);
-        3
-    } else if load_res > 0 {
-        load_res
-    } else {
-        0
-    }
+    // if clear_res > 0 {
+    //     println!("failed to clear, got error: {}", clear_res);
+    //     3
+    // } else
+    // if load_res > 0 {
+    //     load_res
+    // } else {
+    //     0
+    // }
     // load_res
+    0
 }
 
 /// focus-on
@@ -184,6 +183,7 @@ pub fn focus_on(spath: &str, args: &str) -> u8 {
     println!("focus_on");
     println!("spath => {}", spath);
     println!("args => {}", args);
+    // TODO: write this
     0
 }
 
@@ -215,40 +215,41 @@ pub fn make_cmd_data(fname: &str) -> Result<QtileCmdData, u8> {
 }
 
 /// load-layout
-pub async fn load_layout(spath: &str, args: &str) -> u8 {
+pub async fn load_layout(_spath: &str, args: &str) -> u8 {
     // println!("load_layout");
     // println!("spath => {}", spath);
     // println!("args => {}", args);
 
-    let (payload, programs) = match make_payload(args) {
+    let (_payload, programs) = match make_payload(args) {
         Ok(payload) => payload,
         Err(ec) => return ec,
     };
 
     // println!("payload => {}", payload);
 
-    let load_res = qtile_send(payload, spath);
+    // let load_res = qtile_send(payload, spath);
     // thread::sleep(time::Duration::from_millis(20));
-    let clear_res = qtile_send("clear".to_string(), spath);
+    // let clear_res = qtile_send("clear".to_string(), spath);
 
-    sleep(Duration::from_millis(500)).await; // TODO: try commenting this out and/or lowering the time.
+    // sleep(Duration::from_millis(500)).await; // TODO: try commenting this out and/or lowering the time.
 
-    if load_res == 0 {
-        for program in programs {
-            common::open_program(&program);
-        }
+    // if load_res == 0 {
+    //         }
+    for program in programs {
+        common::open_program(&program);
     }
 
     // TODO: set workspaces to desktops
 
-    if clear_res > 0 {
-        println!("failed to clear, got error: {}", clear_res);
-        3
-    } else if load_res > 0 {
-        load_res
-    } else {
-        0
-    }
+    // if clear_res > 0 {
+    //     println!("failed to clear, got error: {}", clear_res);
+    //     3
+    // } else if load_res > 0 {
+    //     load_res
+    // } else {
+    //     0
+    // }
+    0
 }
 
 fn make_payload(fname: &str) -> Result<(String, Vec<String>), u8> {
@@ -264,66 +265,22 @@ fn make_payload(fname: &str) -> Result<(String, Vec<String>), u8> {
     }
 }
 
-fn qtile_send(payload: String, spath: &str) -> u8 {
-    let mut stream = match UnixStream::connect(spath) {
-        Ok(stream) => stream,
-        Err(_) => return 5,
-    };
-
-    let _ = stream.write_all(&payload.into_bytes());
-
-    match stream.shutdown(Shutdown::Write) {
-        Ok(_) => {}
-        Err(e) => {
-            println!("[ERROR] :  failed to shutdown write access to socket file.");
-            println!("[DEBUG] :  {}", e);
-            return 5;
-        }
-    };
-
-    let mut response_bytes = Vec::new();
-    match stream.read_to_end(&mut response_bytes) {
-        Ok(_) => {}
-        Err(e) => {
-            println!("could not read response from server.");
-            println!("[DEBUG] :  {}", e);
-            return 2;
-        }
-    };
-
-    if !response_bytes.is_empty() {
-        let (ec, res) = (response_bytes[0], &response_bytes[1..]);
-        match std::str::from_utf8(res) {
-            Ok(res) => {
-                println!("[LOG] qtile responded: {}", res);
-                ec
-            }
-            Err(e) => {
-                println!("{}", e);
-                5
-            }
-        }
-    } else {
-        println!("[ERROR] The qtile python api didn't respond. It most likely crashed. Pls reload it and try again.");
-        6
-    }
-}
-
-pub async fn qtile_switch(cmd: &str, args: &str, spath: &str) -> OptGenRes {
+pub async fn qtile_switch(
+    cmd: &str,
+    args: &str,
+    spath: &str,
+    layout: &mut QtileCmdData,
+) -> OptGenRes {
     match cmd {
         // "move-to" => Some(move_to(spath, args)),
         // "close-focused" => Some(close_focused(spath)),
-        "open-at" | "open-on" => Some((open_on_desktop(spath, args), None)),
+        "open-at" | "open-on" => Some((open_on_desktop(spath, args, layout), None)),
         "focus-on" => Some((focus_on(spath, args), None)),
         _ => None,
     }
 }
 
-pub async fn qtile_api(
-    cmd: &str,
-    args: &str,
-    layout: &mut Option<QtileCmdData>,
-) -> Option<QtileAPI> {
+pub async fn qtile_api(cmd: &str, args: &str, layout: &mut QtileCmdData) -> Option<QtileAPI> {
     match cmd {
         "load-layout" => match make_cmd_data(args) {
             Ok(layout) => Some(QtileAPI::Layout(layout)),

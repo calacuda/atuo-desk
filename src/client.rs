@@ -1,6 +1,8 @@
 // #![deny(clippy::all)]
 use crate::config;
+use crate::server::{get_running_wm, WindowManager};
 use clap::ArgMatches;
+use log::{error, info};
 use std::fs::remove_file;
 use std::io::Read;
 use std::io::Write;
@@ -19,7 +21,7 @@ pub fn handle_args(args: ArgMatches) {
     let configs = match config::get_configs() {
         Ok(configs) => configs,
         Err(e) => {
-            println!("{}", e);
+            error!("{}", e);
             return;
         }
     };
@@ -38,7 +40,8 @@ pub async fn stop_server() {
     let configs = match config::get_configs() {
         Ok(configs) => configs,
         Err(e) => {
-            println!("{}", e);
+            error!("loading configs produced error: {}", e);
+            error!("failed to stop server to to previous errors");
             return;
         }
     };
@@ -49,11 +52,7 @@ pub async fn stop_server() {
     match clean_fs(&server_soc) {
         Ok(_) => {}
         Err(failed_files) => {
-            println!("[ERROR] failed to delete the following files:");
-
-            for er_mesg in failed_files {
-                println!("\t- {er_mesg}");
-            }
+            error!("failed to delete the following files: {:?}", failed_files);
         }
     }
 }
@@ -97,10 +96,10 @@ fn send_data(data: String, server_soc: &str) -> (ErrorCode, String) {
     let mut stream = match UnixStream::connect(server_soc) {
         Ok(stream) => stream,
         Err(_) => {
-            println!("[ERROR] couldn't connect to socket at \"{}\"", server_soc);
-            println!("Hints:");
-            println!(" - Do you have the socket configured corectly?");
-            println!(" - Is the server runing?");
+            error!("couldn't connect to socket at \"{}\"", server_soc);
+            info!("Error Hints:");
+            info!(" - Do you have the socket configured corectly?");
+            info!(" - Is the server running?");
             exit(1);
         }
     };
@@ -108,8 +107,7 @@ fn send_data(data: String, server_soc: &str) -> (ErrorCode, String) {
     match stream.write_all(&data.into_bytes()) {
         Ok(_) => {}
         Err(e) => {
-            println!("could not send data to server.");
-            println!("[DEBUG] :  {}", e);
+            error!("sending data to server produced error: {e}");
             exit(1);
         }
     };
@@ -117,9 +115,8 @@ fn send_data(data: String, server_soc: &str) -> (ErrorCode, String) {
     match stream.shutdown(Shutdown::Write) {
         Ok(_) => {}
         Err(e) => {
-            println!("failed to shutdown write access to socket file.");
-            println!("program will now hang.");
-            println!("[DEBUG] :  {}", e);
+            error!("shutting down write access to socket produced error: \"{e}\"");
+            error!("program will now hang.");
         }
     };
 
@@ -127,8 +124,7 @@ fn send_data(data: String, server_soc: &str) -> (ErrorCode, String) {
     match stream.read_to_end(&mut response_bytes) {
         Ok(_) => {}
         Err(e) => {
-            println!("could not read response from server.");
-            println!("[DEBUG] :  {}", e);
+            error!("reading server response resulted in error: \"{e}\"");
             exit(1);
         }
     };
@@ -138,37 +134,26 @@ fn send_data(data: String, server_soc: &str) -> (ErrorCode, String) {
         let response = &response_bytes[1..];
         (ec, response)
     } else {
-        println!("[ERROR] server gave no response check server logs.");
+        error!("server gave no response check server logs.");
         return (7, String::new());
     };
 
     if ec > 0 {
         // print!("{}", 7 as char);
-        println!("[ERROR] The server reported an error (check 'systemctl status' for message). error code: {ec}");
-    } else {
-        println!("[SUCCESS] responce: ")
+        error!(
+            "The server reported an error (check 'systemctl status' for message). error code: {ec}"
+        );
     }
 
-    let res_text = match str::from_utf8(response) {
-        Ok(text) => {
-            println!("{}", text);
-            text.to_owned()
-        }
-        Err(e) => {
-            println!("responce had invalid UTF-8, could not parse.");
-            println!("raw bytes:");
-            println!("{:?}", response);
-            format!("{e}")
-        }
-    };
-
-    (ec, res_text)
+    let res_text = String::from_utf8_lossy(response);
+    info!("server responded \"{res_text}\"");
+    (ec, String::from(res_text))
 }
 
 fn handle_layout(args: ArgMatches, server_soc: String) {
     let input_layout_fname: String = args.get_one::<String>("layout").unwrap().clone();
     let layout_path = input_layout_fname; // find_layout(input_layout_fname);
-    println!(
+    info!(
         "loading the {} layout...",
         Path::new(&layout_path).to_str().unwrap()
     );
@@ -178,45 +163,29 @@ fn handle_layout(args: ArgMatches, server_soc: String) {
 
 fn handle_launch(args: ArgMatches, server_soc: String) {
     let program = args.get_one::<String>("program").unwrap().clone();
-    println!("launching {}...", program);
+    info!("launching {}...", program);
 
-    let (_ec, _response_bytes) = if args.contains_id("desktop") {
-        send_data(
-            format!(
-                "open-at {} {}",
-                program,
-                args.get_one::<String>("desktop").unwrap()
-            ),
-            &server_soc,
+    let payload = if get_running_wm() == WindowManager::Qtile && args.contains_id("desktop") {
+        let Some(wm_class) = args.get_one::<String>("wm-class") else {
+            error!("the \"--wm-class\"/\"-c\" arguemnt is required when running in Qtile mode");
+            return
+        };
+
+        format!(
+            "open-at {} {} {}",
+            program,
+            wm_class,
+            args.get_one::<String>("desktop").unwrap()
+        )
+    } else if args.contains_id("desktop") {
+        format!(
+            "open-at {} {}",
+            program,
+            args.get_one::<String>("desktop").unwrap()
         )
     } else {
-        send_data(format!("open-here {}", program), &server_soc)
+        format!("open-here {}", program)
     };
-}
 
-// fn find_layout(fname: String) -> String {
-//     /*
-//      * finds the desired layout file either in the layout dir, cwd, or the path provided.
-//      */
-//     let paths = vec![
-//         format!("~/.config/auto-desk/layouts/{}.yml", fname),
-//         format!("~/.config/auto-desk/layouts/{}.yaml", fname),
-//         fname.clone(),
-//         format!("~/.config/auto-desk/layouts/{}", fname),
-//     ];
-//
-//     for fp in paths
-//         .into_iter()
-//         .map(|x| shellexpand::full(&x).unwrap().to_string())
-//     {
-//         if Path::new(&fp).exists() {
-//             return std::fs::canonicalize(&fp.clone())
-//                 .unwrap()
-//                 .into_os_string()
-//                 .into_string()
-//                 .unwrap();
-//         }
-//     }
-//     println!("could not find the layout file named {}", fname);
-//     exit(1);
-// }
+    send_data(payload, &server_soc);
+}

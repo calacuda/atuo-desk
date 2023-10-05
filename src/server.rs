@@ -13,7 +13,8 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{UnixListener, UnixStream};
 use tokio::task;
 
-enum WindowManager {
+#[derive(PartialEq)]
+pub enum WindowManager {
     Qtile,
     Bspwm,
     LeftWM,
@@ -76,6 +77,7 @@ async fn switch_board<'t>(
     args: &'t str,
     spath: &'t str,
     maybe_hook_data: &'t mut Option<hooks::HookData>,
+    layout: &'t mut qtile::QtileCmdData,
 ) -> GenericRes {
     let mut futures: Vec<BoxFuture<'t, OptGenRes>> = Vec::new();
     // let mut futures: Vec<SwitchBoardFuture> = Vec::new();
@@ -83,7 +85,7 @@ async fn switch_board<'t>(
     match wm {
         WindowManager::Qtile => {
             #[cfg(feature = "qtile")]
-            futures.push(Box::pin(qtile::qtile_switch(cmd, args, spath)));
+            futures.push(Box::pin(qtile::qtile_switch(cmd, args, spath, layout)));
         }
         WindowManager::Bspwm => {
             #[cfg(feature = "bspwm")]
@@ -134,9 +136,10 @@ async fn handle_client_gen(
     // _config_hooks: &config::Hooks,
     mut stream: UnixStream,
     spath: &str,
+    layout: &mut qtile::QtileCmdData,
 ) {
     // handle comand here
-    let (ec, message) = switch_board(wm, &cmd, &args, spath, hooks).await;
+    let (ec, message) = switch_board(wm, &cmd, &args, spath, hooks, layout).await;
     // let mesg = match message {
     //     Some(mesg) => mesg,
     //     None =>
@@ -151,9 +154,9 @@ async fn handle_client_qtile(
     args: String,
     wm: &WindowManager,
     mut stream: UnixStream,
-    layout: &mut Option<qtile::QtileCmdData>,
+    layout: &mut qtile::QtileCmdData,
     hook_data: &mut Option<hooks::HookData>,
-    wm_socket: &str,
+    spath: &str,
 ) -> Option<qtile::QtileCmdData> {
     // handle comand here
     match qtile::qtile_api(&cmd, &args, layout).await {
@@ -177,7 +180,7 @@ async fn handle_client_qtile(
             None
         }
         None => {
-            let (ec, message) = switch_board(wm, &cmd, &args, wm_socket, hook_data).await;
+            let (ec, message) = switch_board(wm, &cmd, &args, spath, hook_data, layout).await;
             write_shutdown(&mut stream, ec, message).await;
             drop(stream);
             None
@@ -196,7 +199,7 @@ fn is_wm_running(procs: &System, proc_name: &str, wm: &str) -> bool {
     false
 }
 
-fn get_running_wm() -> WindowManager {
+pub fn get_running_wm() -> WindowManager {
     use std::env;
     // use std::path::Path;
     // println!("[ERROR] Couldn't find the leftwm command.pipe file.");
@@ -236,7 +239,7 @@ async fn recv_loop(configs: config::Config) -> std::io::Result<()> {
 
     let listener = UnixListener::bind(program_socket)?;
     // #[cfg(feature = "qtile")]  // make this compile for all features?
-    let mut layout: Option<qtile::QtileCmdData> = None;
+    let mut layout: qtile::QtileCmdData = qtile::QtileCmdData::new();
 
     let (mut hooks, hook_checking) =
         if Some(true) == configs.hooks.listen && cfg!(feature = "hooks") {
@@ -285,7 +288,6 @@ async fn recv_loop(configs: config::Config) -> std::io::Result<()> {
                 match wm {
                     WindowManager::Qtile => {
                         // #[cfg(feature = "qtile")]
-                        // TODO: implement "SERVER-STOP" check.
                         if let Some(lo) = handle_client_qtile(
                             cmd,
                             args,
@@ -293,11 +295,11 @@ async fn recv_loop(configs: config::Config) -> std::io::Result<()> {
                             stream,
                             &mut layout,
                             &mut hooks,
-                            wm_socket,
+                            program_socket,
                         )
                         .await
                         {
-                            layout = Some(lo.clone());
+                            layout = lo.clone();
                             println!("[DEBUG] layout: {:?}", lo);
                             task::spawn(async move {
                                 for program in lo.queue {
@@ -315,7 +317,16 @@ async fn recv_loop(configs: config::Config) -> std::io::Result<()> {
                             // let tmp_wms = wm_socket.to_string();
                             // let tmp_hooks = hooks.clone();
                             // let tmp_config_hooks = configs.hooks.clone();
-                            handle_client_gen(cmd, args, &wm, &mut hooks, stream, wm_socket).await;
+                            handle_client_gen(
+                                cmd,
+                                args,
+                                &wm,
+                                &mut hooks,
+                                stream,
+                                wm_socket,
+                                &mut layout,
+                            )
+                            .await;
                         }
                     }
                 }
