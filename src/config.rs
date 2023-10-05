@@ -1,8 +1,6 @@
 use serde::Deserialize;
 use std::collections::HashSet;
 use std::fs;
-// use std::env;
-// use users;
 
 pub const PORT_PIPE: &str = "auto-desk.ports";
 
@@ -82,4 +80,3 @@ pub fn get_pipe_d() -> String {
 pub fn get_pipe_f() -> String {
     format!("{}/{PORT_PIPE}", get_pipe_d())
 }
-

@@ -1,16 +1,15 @@
-use events::Context;
-use std::collections::{HashMap, HashSet};
-use tokio::sync::mpsc::{Sender, Receiver};
-// use std::process::Command;
-// use std::os::unix::process::CommandExt;
-use tokio::process::Command;
-use tokio::task;
-use tokio::sync::mpsc::unbounded_channel;
+use crate::config;
 use crate::config::Hook;
 use crate::config::OptGenRes;
 use crate::events;
-use crate::config;
 use crate::msgs;
+use events::Context;
+use log::{debug, error, info};
+use std::collections::{HashMap, HashSet};
+use tokio::process::Command;
+use tokio::sync::mpsc::unbounded_channel;
+use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::task;
 
 pub type HookID = u16;
 pub type Hooks = HashMap<HookID, Hook>;
@@ -18,7 +17,7 @@ pub type Hooks = HashMap<HookID, Hook>;
 #[derive(Clone, Debug)]
 pub struct HookDB {
     pub hooks: Hooks,
-    pub next_uid: HookID, 
+    pub next_uid: HookID,
     pub wifi_net: Vec<HookID>,
     pub net_con: Vec<HookID>,
     pub backlight: Vec<HookID>,
@@ -37,10 +36,10 @@ impl Default for HookDB {
 
 impl HookDB {
     pub fn new() -> HookDB {
-        HookDB { 
+        HookDB {
             hooks: HashMap::new(),
             next_uid: 0,
-            wifi_net: Vec::new(), 
+            wifi_net: Vec::new(),
             net_con: Vec::new(),
             backlight: Vec::new(),
             usb_dev: Vec::new(),
@@ -63,8 +62,8 @@ impl HookDB {
             "port-status-change" => self.ports_change.push(hook_id),
             // "test_file_exists" => self.test_file_exists.push(hook_id),
             _ => {
-                println!("[INFO] no known event by the name {}.", hook.event);
-                return Err(())
+                info!("no known event by the name {}.", hook.event);
+                return Err(());
             }
         }
         self.hooks.insert(hook_id, hook);
@@ -76,7 +75,7 @@ impl HookDB {
     fn update(&mut self, new_db: HookDB) {
         for (_, hook) in new_db.hooks.iter() {
             if self.add_hook(hook.clone()).is_err() {
-                println!("[ERROR] unknown error merging in new hook");
+                error!("unknown error merging in new hook");
             };
         }
     }
@@ -107,8 +106,11 @@ async fn update_hook_db(hook_db: &HookDB, event_loop_tx: &Sender<HookDB>) -> u8 
 async fn make_db_from_conf(hooks: Vec<Hook>, db: &mut HookDB) {
     for conf_hook in hooks {
         match db.add_hook(conf_hook.clone()) {
-            Ok(_) => {},
-            Err(_) => println!("could not add a hook from the config file. bad hook: {:?}", conf_hook),
+            Ok(_) => {}
+            Err(_) => error!(
+                "could not add a hook from the config file. bad hook: {:?}",
+                conf_hook
+            ),
         };
     }
 }
@@ -120,13 +122,15 @@ async fn add_hook(args: &str, hook_data: &mut HookData) -> u8 {
         None => return 7,
     };
 
-    let hook = Hook { event: event.to_string(), exec: exec.to_string() };
+    let hook = Hook {
+        event: event.to_string(),
+        exec: exec.to_string(),
+    };
     match hook_data.db.add_hook(hook) {
         Ok(_) => update_hook_db(&hook_data.db, &hook_data.send).await,
         Err(_) => 9,
     }
 }
-
 
 /// removes a hook by sending a mpsc message to start hooks.
 async fn rm_hook(_args: &str, _hook_db: &mut HookDB) -> u8 {
@@ -135,7 +139,7 @@ async fn rm_hook(_args: &str, _hook_db: &mut HookDB) -> u8 {
 }
 
 /// used to get a list of hooks from start hooks.
-/// returns a string of a nice table representing all hooks, 
+/// returns a string of a nice table representing all hooks,
 /// what their hooked to and their ID.
 async fn get_hook(_hook_db: &HookDB) -> String {
     // TODO: Implement
@@ -143,29 +147,26 @@ async fn get_hook(_hook_db: &HookDB) -> String {
 }
 
 fn execute_hook(exec: &str, context: HashMap<String, String>) {
-    let exec = String::from(exec); 
+    let exec = String::from(exec);
 
     tokio::task::spawn(async move {
         let proc = Command::new("sh")
             .arg("-c")
-            .arg(&exec)  // format!("systemd-run --user {exec}")  // adding systemd-run doesnt work. 
+            .arg(&exec) // format!("systemd-run --user {exec}")  // adding systemd-run doesnt work.
             // .env_clear()
             .envs(context)
-            .spawn();  // maybe change to .output() or remove .wait().
-        
+            .spawn(); // maybe change to .output() or remove .wait().
+
         match proc {
             Ok(mut child) => {
                 if let Err(reason) = child.wait().await {
-                    println!("[ERROR] hook: '{exec}', exited with error:");
-                    println!("\t{reason}");
+                    error!("hook: '{exec}', exited with error: \"{reason}\"");
                 } else {
-                    println!("[DEBUG] {child:?}");
+                    debug!("child id => {child:?}");
                 }
             }
             Err(reason) => {
-                println!("[ERROR] could not run hook: '{exec}'.");
-                println!("\tit is likely that the executable could not be found, see bellow for error.");
-                println!("\tgot error:\n{reason}");
+                error!("running hook: '{exec}' produced error: {reason}. this usually means the executable wasn't found in the PATH.");
             }
         }
     });
@@ -174,7 +175,7 @@ fn execute_hook(exec: &str, context: HashMap<String, String>) {
 fn run_hooks(context: Option<HashMap<String, String>>, event_hook: &[HookID], all_hooks: &Hooks) {
     let context = match context {
         Some(con) => con,
-        None => return,  // might need to change this return to an empty hashmap if any events don't return a context. 
+        None => return, // might need to change this return to an empty hashmap if any events don't return a context.
     };
 
     let hooks = get_hooks(event_hook, all_hooks);
@@ -183,7 +184,7 @@ fn run_hooks(context: Option<HashMap<String, String>>, event_hook: &[HookID], al
 
     for hook in hooks {
         // println!("program: {}", &hook.exec);
-        // let exec = &hook.exec; 
+        // let exec = &hook.exec;
         // let mut raw_cmd = Command::new("sh")
         // .arg("-c")
         // .arg(format!("{exec} &"))
@@ -204,12 +205,12 @@ fn run_hooks(context: Option<HashMap<String, String>>, event_hook: &[HookID], al
         execute_hook(&hook.exec, context.clone())
     }
     // tokio::task::spawn(async {join_all(cmds)});
-} 
+}
 
 fn get_hooks(event_hooks: &[HookID], all_hooks: &Hooks) -> Vec<Hook> {
     let mut hooks = Vec::new();
 
-    for hook_id in event_hooks { 
+    for hook_id in event_hooks {
         match all_hooks.get(hook_id) {
             Some(prog) => hooks.push(prog.clone()),
             None => continue,
@@ -219,79 +220,60 @@ fn get_hooks(event_hooks: &[HookID], all_hooks: &Hooks) -> Vec<Hook> {
     hooks
 }
 
-pub async fn hooks_switch( 
-    cmd: &str, 
-    args: &str, 
+pub async fn hooks_switch(
+    cmd: &str,
+    args: &str,
     maybe_hook_data: &mut Option<HookData>,
 ) -> OptGenRes {
-    match (cmd, maybe_hook_data, ) { 
-        ( "add-hook", Some(hook_data) )=> Some((add_hook(args, hook_data).await, None)),
-        ( "rm-hook", Some(hook_data) )=> Some((rm_hook(args, &mut hook_data.db).await, None)),
-        ( "ls-hook" | "list-hook", Some(hook_data) )=> {
+    match (cmd, maybe_hook_data) {
+        ("add-hook", Some(hook_data)) => Some((add_hook(args, hook_data).await, None)),
+        ("rm-hook", Some(hook_data)) => Some((rm_hook(args, &mut hook_data.db).await, None)),
+        ("ls-hook" | "list-hook", Some(hook_data)) => {
             // TODO: this chould be a table, just like sql output. Thats why its called table.
             let table = get_hook(&hook_data.db).await;
             Some((0, Some(table)))
-        },
+        }
         _ => None,
     }
 }
 
 /// starts asynchronously checking for events and then triggers hooks.
-pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, cmd_passer: &mut Receiver<msgs::EventCmd>, stop_execs: HashSet<String>, config_hooks: Vec<Hook>, ignore_web: bool) {
-      
+pub async fn check_even_hooks(
+    hook_db_rx: &mut Receiver<HookDB>,
+    cmd_passer: &mut Receiver<msgs::EventCmd>,
+    stop_execs: HashSet<String>,
+    config_hooks: Vec<Hook>,
+    ignore_web: bool,
+) {
     // define the hook storage struct
     let mut hook_db = HookDB::new();
     make_db_from_conf(config_hooks, &mut hook_db).await;
 
     // port change event
     let (ports_tx, mut ports_rx) = unbounded_channel::<Vec<Context>>();
-    let ports = task::spawn(
-        async move {
-            events::port_change(stop_execs, ignore_web, ports_tx).await
-        }
-    );
+    let ports =
+        task::spawn(async move { events::port_change(stop_execs, ignore_web, ports_tx).await });
 
     // bluetooth device connected event
     let (blt_tx, mut blt_rx) = unbounded_channel::<Context>();
-    let bluetooth_dev = task::spawn( 
-        async move { 
-            events::blt_dev_conn(blt_tx).await
-        }
-    );
-    
+    let bluetooth_dev = task::spawn(async move { events::blt_dev_conn(blt_tx).await });
+
     // new usb dev event
     let (usb_tx, mut usb_rx) = unbounded_channel::<Context>();
-    let new_usb = task::spawn(
-        async move {
-            events::new_usb(usb_tx).await
-        }
-    );
-    
+    let new_usb = task::spawn(async move { events::new_usb(usb_tx).await });
+
     // change in backlight event
     let (bl_tx, mut bl_rx) = unbounded_channel::<Context>();
-    let backlight = task::spawn(
-        async move {
-            events::backlight_change(bl_tx).await
-        }
-    );
+    let backlight = task::spawn(async move { events::backlight_change(bl_tx).await });
 
     // network (dis)connected event
     let (net_con_tx, mut net_con_rx) = unbounded_channel::<Context>();
-    let net_connected = task::spawn(
-        async move {
-            events::network_connection(net_con_tx).await
-        }
-    );
+    let net_connected = task::spawn(async move { events::network_connection(net_con_tx).await });
 
     // changed wifi network event.
     let (wifi_net_tx, mut wifi_net_rx) = unbounded_channel::<Context>();
-    let network_change = task::spawn(
-        async move {
-            events::wifi_change(wifi_net_tx).await
-        }
-    );
+    let network_change = task::spawn(async move { events::wifi_change(wifi_net_tx).await });
 
-    
     loop {
         // async check for events and messages via thread based message passing
         tokio::select! {
@@ -304,34 +286,34 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, cmd_passer: &mu
                 match message {
                     Some(tmp_hook_db) => hook_db.update(tmp_hook_db),
                     None => {
-                        println!("[ERROR] failed to receive the modified hook database.");
+                        error!("failed to receive the modified hook database.");
                     }
                 }
             },
             context = wifi_net_rx.recv() => {
-                println!("[LOG] running event hooks for event 'wifi-network-change'");
+                info!("running event hooks for event 'wifi-network-change'");
                 run_hooks(context, &hook_db.wifi_net, &hook_db.hooks);
             },
             context = net_con_rx.recv() => {
-                println!("[LOG] running event hooks for event 'network-toggle'");
+                info!("running event hooks for event 'network-toggle'");
                 run_hooks(context, &hook_db.net_con, &hook_db.hooks);
             },
             // context = events::file_exists() => run_hooks(context, &hook_db.test_file_exists, &hook_db.hooks).await,
             context = bl_rx.recv() => {
-                println!("[LOG] running event hooks for event 'backlight change'");
+                info!("running event hooks for event 'backlight change'");
                 run_hooks(context, &hook_db.backlight, &hook_db.hooks);
             },
             context = usb_rx.recv() => {
-                println!("[LOG] running event hooks for event 'new-usb-device'");
+                info!("running event hooks for event 'new-usb-device'");
                 run_hooks(context, &hook_db.usb_dev, &hook_db.hooks);
             },
             context = blt_rx.recv() => {
-                println!("[LOG] running event hooks for event 'bluetooth-device'");
+                info!("running event hooks for event 'bluetooth-device'");
                 run_hooks(context, &hook_db.bluetooth_conn, &hook_db.hooks);
             },
             contexts = ports_rx.recv() => {
-                println!("[LOG] running event hooks for event 'port-status-change'");
-                // println!("running hooks");
+                info!("running event hooks for event 'port-status-change'");
+
                 if let Some(contexts) = contexts {
                     for context in contexts {
                         run_hooks(Some(context), &hook_db.ports_change, &hook_db.hooks);
@@ -341,9 +323,15 @@ pub async fn check_even_hooks(hook_db_rx: &mut Receiver<HookDB>, cmd_passer: &mu
         }
     }
 
-    // kill the event listners
-    for event_listener in [ports, bluetooth_dev, new_usb, backlight, net_connected, network_change] {
+    for event_listener in [
+        ports,
+        bluetooth_dev,
+        new_usb,
+        backlight,
+        net_connected,
+        network_change,
+    ] {
         event_listener.abort();
-        println!("{:?}", event_listener);
+        info!("stopping event listener: {:?}", event_listener);
     }
 }
