@@ -103,7 +103,7 @@ fn logger_init() {
                 message
             ))
         })
-        .filter(|metadata| metadata.target().starts_with("ptdb"))
+        .filter(|metadata| metadata.target().starts_with("auto_desk"))
         .chain(std::io::stderr())
         // .chain(fern::log_file("output.log")?)
         .apply();
@@ -117,7 +117,7 @@ fn logger_init() {
                 message
             ))
         })
-        .filter(|metadata| metadata.target().starts_with("ptdb"))
+        .filter(|metadata| metadata.target().starts_with("auto_desk"))
         .chain(std::io::stderr())
         // .chain(fern::log_file("output.log")?)
         .apply();

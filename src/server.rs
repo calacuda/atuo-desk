@@ -344,7 +344,7 @@ fn clear_sockets(prog_so: &str) {
     for p in [prog_so, &config::get_pipe_f()] {
         let path = std::path::Path::new(&p);
         if path.exists() {
-            info!("[LOG] clearing socker file at {:?}", path);
+            info!("clearing socker file at {:?}", path);
             if let Err(e) = std::fs::remove_file(path) {
                 error!("deleting previous socket at \"{path:?}\" returned error: \"{e}\"");
             }
