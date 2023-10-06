@@ -1,4 +1,5 @@
 #![deny(clippy::all)]
+use log::error;
 use serde::{Deserialize, Serialize};
 use serde_yaml;
 use shellexpand;
@@ -32,10 +33,7 @@ pub fn get_layout(fname: &str) -> Result<Conf, u8> {
     let file_path = match get_layout_file(fname) {
         Ok(path) => path,
         Err(_) => {
-            println!(
-                "[ERROR] can't load layout stored in \"{}\", file doesn't exsist.",
-                fname
-            );
+            error!("can't load layout stored in \"{fname}\", file doesn't exsist.");
             return Err(4);
         }
     };
@@ -43,7 +41,7 @@ pub fn get_layout(fname: &str) -> Result<Conf, u8> {
     let layout_file = match read_to_string(&file_path) {
         Ok(data) => data,
         Err(_) => {
-            println!("[ERROR] could not layout file {}", file_path);
+            error!("could not layout file \"{file_path}\"");
             return Err(4);
         }
     };
@@ -51,7 +49,7 @@ pub fn get_layout(fname: &str) -> Result<Conf, u8> {
     match serde_yaml::from_str(&layout_file) {
         Ok(data) => Ok(data),
         Err(e) => {
-            println!("[ERROR] could not parse yaml layout file {}: {}", fname, e);
+            error!("could not parse yaml layout file {fname}. error: \"{e}\"");
             Err(4)
         }
     }

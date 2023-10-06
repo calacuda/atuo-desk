@@ -1,3 +1,4 @@
+use log::error;
 use std::process::Command;
 
 /*
@@ -18,7 +19,7 @@ fn change_volume(amount: &str, raise: bool) -> u8 {
     match process {
         Ok(_) => 0,
         Err(e) => {
-            println!("[ERROR] ALSA volume error: {}", e);
+            error!("ALSA volume error: {e}");
             4
         }
     }
@@ -41,7 +42,7 @@ pub fn mute() -> u8 {
     {
         Ok(_) => 0,
         Err(e) => {
-            println!("[ERROR] alsa volume error: {}", e);
+            error!("alsa volume error: {}", e);
             4
         }
     }
@@ -51,7 +52,7 @@ fn playerctl(arg: &str) -> u8 {
     match Command::new("playerctl").args([arg]).output() {
         Ok(_) => 0,
         Err(e) => {
-            println!("[ERROR] playerctl {} error: {}", arg, e);
+            error!("playerctl {} error: {}", arg, e);
             4
         }
     }

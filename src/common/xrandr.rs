@@ -1,3 +1,4 @@
+use log::error;
 use std::process::{Command, Stdio};
 
 pub fn add_monitor(monitor: &str) -> u8 {
@@ -9,7 +10,7 @@ pub fn add_monitor(monitor: &str) -> u8 {
     {
         Ok(_) => 0,
         Err(e) => {
-            println!("[ERROR] couldn't not add monitor via xrandr: {}", e);
+            error!("couldn't not add monitor via xrandr: {}", e);
             4
         }
     };

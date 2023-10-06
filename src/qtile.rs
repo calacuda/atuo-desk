@@ -1,6 +1,7 @@
 use crate::common;
 use crate::config::OptGenRes;
 use crate::wm_lib;
+use log::{debug, error, trace};
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;
@@ -63,7 +64,6 @@ impl QtileCmdData {
     }
 
     fn get_location_helper(&mut self, wm_class: &str) -> Option<String> {
-        // println!("wm_class :  {wm_class}, rules :  {:?}", self.rules);
         match self.rules.get_mut(wm_class) {
             Some(desktops) => desktops.pop(),
             None => None,
@@ -108,36 +108,29 @@ pub fn should_clear(args: &str, layout: &mut QtileCmdData) -> Result<bool, u8> {
 }
 
 pub fn auto_move(args: &str, layout: &mut QtileCmdData) -> Result<Option<String>, u8> {
-    // println!("auto-move");
-    // println!("args => {}", args);
-    // println!("layout => {:?}", layout);
-    // let tmp_layout = match layout {
-    //     Some(lo) => lo,
-    //     None => {
-    //         println!("[DEBUG] no layout provided.");
-    //         return Ok(None);
-    //     }
-    // };
+    // debug!("auto-move");
+    // debug!("args => {}", args);
+    // debug!("layout => {:?}", layout);
+
     let arguments = args.splitn(2, ' ').collect::<Vec<&str>>();
     if arguments.len() != 2 {
-        println!("[ERROR] wrong number of arguments, {}", arguments.len());
+        error!("wrong number of arguments, {}", arguments.len());
         return Err(7);
     }
 
     let wm_classes = (arguments[0], arguments[1]);
-    println!("[DEBUG] wm_classes: {:?}", wm_classes);
+    debug!("wm_classes: {:?}", wm_classes);
 
     let location = match layout.get_location(wm_classes) {
         Some(location) => location,
         None => {
-            println!("[DEBUG] wm_class not in layout.");
+            debug!("wm_class not in layout.");
             return Ok(None);
         }
     };
 
-    println!(
-        "[DEBUG] moving window with class: {:?} to location: {location}, will be handled by qtile.",
-        wm_classes
+    debug!(
+        "moving window with class: {wm_classes:?} to location: {location}, will be handled by qtile."
     );
     Ok(Some(location))
 }
@@ -151,38 +144,17 @@ pub fn open_on_desktop(_spath: &str, args: &str, layout: &mut QtileCmdData) -> u
     }
 
     let (exe, wm_class, desktop) = (data[0], data[1], data[2]);
-    // let payload = format!(
-    //     "load{NULL}{{\"rules\": {{ \"{wm_class}\": [\"{desktop}\"]}}, \"queue\": [\"{exe}\"] }}"
-    // );
 
     layout.add_rules(wm_class, desktop);
-    // let payload = format!("ot-layout {wm_class} {desktop}");
 
-    // println!("payload => {}", payload);
-
-    // let load_res = qtile_send(payload, spath);
-    // println!("load_res => {load_res}");
-    // thread::sleep(time::Duration::from_millis(20));
-    // let clear_res = qtile_send("clear".to_string(), spath);
-    common::open_program(exe);
-    // if clear_res > 0 {
-    //     println!("failed to clear, got error: {}", clear_res);
-    //     3
-    // } else
-    // if load_res > 0 {
-    //     load_res
-    // } else {
-    //     0
-    // }
-    // load_res
-    0
+    common::open_program(exe)
 }
 
 /// focus-on
 pub fn focus_on(spath: &str, args: &str) -> u8 {
-    println!("focus_on");
-    println!("spath => {}", spath);
-    println!("args => {}", args);
+    trace!("focus_on");
+    debug!("spath => {}", spath);
+    debug!("args => {}", args);
     // TODO: write this
     0
 }
@@ -202,7 +174,7 @@ pub fn make_cmd_data(fname: &str) -> Result<QtileCmdData, u8> {
                     payload_struc.add_rules(class, &desktop.desktop);
                     payload_struc.add_queue(&program.name, &program.args);
                 }
-                None => println!(
+                None => error!(
                     "no wm_class defined for {} in the layout file. could not setup or launch.",
                     program.name
                 ),
@@ -215,40 +187,25 @@ pub fn make_cmd_data(fname: &str) -> Result<QtileCmdData, u8> {
 }
 
 /// load-layout
-pub async fn load_layout(_spath: &str, args: &str) -> u8 {
-    // println!("load_layout");
-    // println!("spath => {}", spath);
-    // println!("args => {}", args);
+pub async fn load_layout(spath: &str, args: &str) -> u8 {
+    trace!("load_layout");
+    debug!("spath => {}", spath);
+    debug!("args => {}", args);
 
     let (_payload, programs) = match make_payload(args) {
         Ok(payload) => payload,
         Err(ec) => return ec,
     };
 
-    // println!("payload => {}", payload);
-
-    // let load_res = qtile_send(payload, spath);
-    // thread::sleep(time::Duration::from_millis(20));
-    // let clear_res = qtile_send("clear".to_string(), spath);
-
-    // sleep(Duration::from_millis(500)).await; // TODO: try commenting this out and/or lowering the time.
-
-    // if load_res == 0 {
-    //         }
     for program in programs {
-        common::open_program(&program);
+        let res = common::open_program(&program);
+
+        if res > 0 {
+            error!("launching \"{program}\", returned a non-zero error-code.");
+        }
     }
 
     // TODO: set workspaces to desktops
-
-    // if clear_res > 0 {
-    //     println!("failed to clear, got error: {}", clear_res);
-    //     3
-    // } else if load_res > 0 {
-    //     load_res
-    // } else {
-    //     0
-    // }
     0
 }
 
@@ -258,8 +215,7 @@ fn make_payload(fname: &str) -> Result<(String, Vec<String>), u8> {
     match serde_json::to_string(&payload_struc) {
         Ok(jsons) => Ok((jsons, payload_struc.queue)),
         Err(e) => {
-            println!("[DEBUG] got error while serializing to qtile-data to json.");
-            println!("error: {}", e);
+            error!("got error while serializing to qtile-data to json. error:\"{e}\"");
             Err(4)
         }
     }

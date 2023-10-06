@@ -1,3 +1,4 @@
+use log::error;
 use std::process::Command;
 
 /*
@@ -9,7 +10,7 @@ fn xbacklight(dir: &str, amount: &str) -> u8 {
     match Command::new("xbacklight").args([dir, amount]).output() {
         Ok(_) => 0,
         Err(e) => {
-            println!("[ERROR] xbacklight {}, {} error: {}", dir, amount, e);
+            error!("xbacklight {}, {}, error: {}", dir, amount, e);
             4
         }
     }

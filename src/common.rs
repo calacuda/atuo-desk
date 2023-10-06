@@ -1,7 +1,8 @@
+use crate::config::OptGenRes;
+use log::{error, info};
 use rdev::{simulate, EventType, Key, SimulateError};
 use std::process::{Command, Stdio};
 use std::{thread, time};
-use crate::config::OptGenRes;
 
 mod backlight;
 mod media;
@@ -10,7 +11,7 @@ mod xrandr;
 
 pub fn open_program(program: &str) -> u8 {
     // TODO: make the programs keep running after desktop-automater stops or gets killed.
-    println!("[LOG] running: {}", program);
+    info!("running: {}", program);
     let process = if program.ends_with(".desktop") {
         Command::new("gtk-launch")
             .arg(program)
@@ -20,19 +21,19 @@ pub fn open_program(program: &str) -> u8 {
     } else {
         Command::new("sh")
             .arg("-c")
-            .arg(format!("coproc {program}; disown; exit"))  
+            .arg(format!("coproc {program}; disown; exit"))
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()
     };
-    println!("[LOG] ran '{}'", program);
+    info!("ran '{}'", program);
     match process {
         Ok(_) => {
-            println!("[LOG] program '{}' launched", program);
+            info!("program '{}' launched", program);
             0
         }
         Err(e) => {
-            println!("[ERROR] program '{}' could not be launched: '{}'", program, e);
+            error!("program '{program}' could not be launched: '{e}'");
             4
         }
     }
@@ -45,14 +46,14 @@ fn send_key_stroke(event_type: &EventType) -> u8 {
         Err(SimulateError) => {
             match event_type {
                 EventType::KeyPress(Key::PrintScreen) => {
-                    println!("[ERROR] print screen key not pressed")
+                    error!("print screen key not pressed")
                 }
                 EventType::KeyRelease(Key::PrintScreen) => {
-                    println!("[ERROR] print screen key not released")
+                    error!("print screen key not released")
                 }
-                EventType::KeyPress(key) => println!("[ERROR {:?} key not pressed", key),
-                EventType::KeyRelease(key) => println!("[ERROR {:?} key not released", key),
-                _ => {} // this will happend when funciton is used for somthing unintended.
+                EventType::KeyPress(key) => error!("{:?} key not pressed", key),
+                EventType::KeyRelease(key) => error!("{:?} key not released", key),
+                _ => error!("this function is not designed to do that!"), // this will happens when function is used for somthing unintended.
             }
             4
         }
@@ -75,7 +76,7 @@ fn screen_shot() -> u8 {
     }
 }
 
-pub async fn common_switch(cmd: &str, args: &str) -> OptGenRes{
+pub async fn common_switch(cmd: &str, args: &str) -> OptGenRes {
     match cmd {
         "open-here" => Some((open_program(args), None)),
         "screen-shot" => Some((screen_shot(), None)),

@@ -1,17 +1,18 @@
+use crate::common::open_program;
+use crate::config::OptGenRes;
+use crate::wm_lib;
+use crate::wm_lib::{DesktopLayout, Program};
+use freedesktop_entry_parser::parse_entry;
+use log::{error, info};
+use procfs::process;
 use shellexpand;
 use std::env::set_current_dir;
+use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;
 use std::path::Path;
 use std::process::{Command, Stdio};
-use xdotool::window::get_window_pid;
 use std::{thread, time};
-use procfs::process;
-use std::io::{Read, Write};
-use crate::common::open_program;
-use crate::wm_lib;
-use crate::wm_lib::{Program, DesktopLayout};
-use freedesktop_entry_parser::parse_entry;
-use crate::config::OptGenRes;
+use xdotool::window::get_window_pid;
 
 fn remove_present(progs: &Vec<Program>, execs: &mut Vec<String>) -> Vec<Program> {
     let mut programs = Vec::new();
@@ -19,7 +20,7 @@ fn remove_present(progs: &Vec<Program>, execs: &mut Vec<String>) -> Vec<Program>
         let prog = &get_exec(program).to_lowercase();
         if execs.contains(prog) {
             let i = execs.iter().position(|x| x == prog).unwrap();
-            println!("removeing {} at position {}", prog, i);
+            info!("removeing {} at position {}", prog, i);
             execs.remove(i);
         } else {
             programs.push(program.clone());
@@ -72,23 +73,16 @@ fn get_progs(desktop_name: &str, programs: &Vec<Program>, spath: &str) -> Vec<Pr
 
 fn load_layout(spath: &str, args: &str) -> u8 {
     // loads a layout file and configures the system apropiately.
-    
+
     let layout_yaml = match wm_lib::get_layout(args) {
         Ok(layout) => layout,
         Err(n) => return n,
     };
 
-    // println!("[LOG] loading layout {}", file_path);
+    info!("loading layout {args}");
 
     // stop the window manager from following to the newest window. not actually nessesary.
     send(spath, "config ignore_ewmh_focus true");
-
-    // let error_code = if file_path.ends_with(".yml") || file_path.ends_with(".yaml") {
-    //     load_from_yaml(layout_file, spath, &file_path)
-    // } else {
-    //     load_from_layout(layout_file, spath)
-    //     4
-    // };
 
     let error_code = load_from_yaml(layout_yaml.desktops, spath);
 
@@ -126,7 +120,7 @@ fn load_from_yaml(layouts: Vec<DesktopLayout>, spath: &str) -> u8 {
         let err_codes = match launcher.join() {
             Ok(ecs) => ecs,
             Err(e) => {
-                println!("[ERROR] got unknown error: {:?}", e);
+                error!("got unknown error: {e:?}");
                 vec![2]
             }
         };
@@ -166,8 +160,8 @@ fn set_up_desktop(desktop_name: &str, programs: &Vec<Program>, spath: &str) -> V
         let ec = run_exec(&exec, desktop_name, &program, spath);
         ecs.push(ec);
         if ec > 0 {
-            println!(
-                "[ERROR] count not launch {} on desktop {}.",
+            error!(
+                "count not launch {} on desktop {}.",
                 program.name, desktop_name
             );
         }
@@ -237,21 +231,20 @@ fn query(spath: &str, message: &str) -> String {
         Ok(mut stream) => {
             match stream.write_all(&make_api(message)) {
                 Ok(_) => {}
-                Err(e) => println!("[ERROR] couldn't not send data to BSPWM: {}", e),
+                Err(e) => error!("send data to BSPWM produced error: \"{e}\""),
             };
             let mut res = String::new();
             match stream.read_to_string(&mut res) {
                 Ok(_) => {}
                 Err(_e) => {
-                    println!("could not read from bspwm socket. user intervention requested.");
+                    error!("could not read from bspwm socket. user intervention requested.");
                 }
             };
             res
         }
         Err(e) => {
-            println!(
-                "[ERROR] could not connect to bspwm (are you usign the right socket file?): {}",
-                e
+            error!(
+                "could not connect to bspwm (are you usign the right socket file?). error: \"{e}\""
             );
             String::new()
         }
@@ -269,7 +262,7 @@ fn open_on_desktop(spath: &str, raw_args: &str) -> u8 {
 
     let _ = set_current_dir(Path::new(&shellexpand::tilde("~/").to_string()));
 
-    println!("[LOG] running {} on desktop {}:", program, desktop);
+    info!("running {} on desktop {}:", program, desktop);
 
     if send(spath, &format!("desktop {} -f", desktop)) > 0 {
         return 3;
@@ -292,11 +285,11 @@ fn open_on_desktop(spath: &str, raw_args: &str) -> u8 {
 
     let process = match cmd {
         Ok(_) => {
-            println!("[LOG] program {} launched", program);
+            info!("program {} launched", program);
             0
         }
         Err(e) => {
-            println!("[ERROR] program {} could not be launched: {}", program, e);
+            error!("program {program} could not be launched. error: \"{e}\"");
             return 4;
         }
     };
@@ -352,17 +345,20 @@ fn send(spath: &str, message: &str) -> u8 {
         Ok(mut stream) => {
             match stream.write_all(&make_api(message)) {
                 Ok(_) => {}
-                Err(e) => println!("[ERROR] couldn't not send data to BSPWM: {}", e),
+                Err(e) => error!("sending data to BSPWM resulted in error: \"{e}\""),
             };
             let mut res: Vec<u8> = Vec::new();
             match stream.read_to_end(&mut res) {
                 Ok(_) => {}
                 Err(_e) => {
-                    println!("could not read from bspwm socket. user intervention requested.");
+                    error!("could not read from bspwm socket. user intervention requested.");
                 }
             };
             if !res.is_empty() && res[0] == 7_u8 {
-                println!("[ERROR] BSPWM error: {}", String::from_utf8(res).unwrap());
+                error!(
+                    "BSPWM returned error: \"{}\"",
+                    String::from_utf8(res).unwrap()
+                );
                 6
             } else {
                 // use std::str;
@@ -371,10 +367,7 @@ fn send(spath: &str, message: &str) -> u8 {
             }
         }
         Err(e) => {
-            println!(
-                "[ERROR] could not connect to bspwm (are you usign the right socket file?): {}",
-                e
-            );
+            error!("could not connect to bspwm (are you usign the right socket file?): \"{e}\"");
             5
         }
     }

@@ -213,11 +213,11 @@ pub fn get_running_wm() -> WindowManager {
         WindowManager::Qtile
     // } else if Path::new("/tmp/bspwm_0_0-socket").exists() {
     } else if is_wm_running(&procs, "bspwm", "bspwm") {
-        println!("[LOG] Running in BSPWM mode");
+        info!("Running in BSPWM mode");
         WindowManager::Bspwm
     // } else if leftwm::get_cmd_file() != None {
     } else if is_wm_running(&procs, "leftwm", "leftwm") {
-        println!("[LOG] Running in leftwm mode");
+        info!("Running in leftwm mode");
         WindowManager::LeftWM
     } else {
         WindowManager::Headless

@@ -35,6 +35,8 @@ pub fn lock() -> u8 {
 }
 
 pub fn logout() -> u8 {
+    // FIXME: this wont work for all window managers.
+    // TODO:make this log out funcitno window manager specific.
     let _process = Command::new("pkill").args(["bspwm"]).output();
     0
 }

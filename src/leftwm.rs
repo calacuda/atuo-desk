@@ -1,8 +1,9 @@
+use log::error;
 use std::path::PathBuf;
 use std::{thread, time};
+use tokio::fs::write;
 use tokio::task;
 use xdg::BaseDirectories;
-use tokio::fs::write;
 
 use crate::common;
 use crate::config::OptGenRes;
@@ -23,16 +24,16 @@ pub fn get_cmd_file() -> Option<PathBuf> {
     let file_name = "command-0.pipe";
     match BaseDirectories::with_prefix("leftwm") {
         Ok(run_dir) => {
-            let dirs  = run_dir.find_runtime_file(file_name);
+            let dirs = run_dir.find_runtime_file(file_name);
 
             if dirs.is_none() {
-                println!("[ERROR] Couldn't find the leftwm command.pipe file.");
+                error!("Couldn't find the leftwm command.pipe file.");
             }
 
             dirs
         }
         Err(e) => {
-            println!("[ERROR] Couldn't find the leftwm run dir. got error: \n{e}");
+            error!("Couldn't find the leftwm run dir. got error: \"{e}\"");
             None
         }
     }
@@ -74,13 +75,13 @@ async fn load_from_yaml(layouts: Vec<wm_lib::DesktopLayout>) -> u8 {
         let err_codes = match launcher.await {
             Ok(ecs) => ecs,
             Err(e) => {
-                println!("[ERROR] got unknown error: {:?}", e);
+                error!("got unknown error: \"{e}\"");
                 vec![2]
             }
         };
-        
+
         let non_zero_err_codes: Vec<u8> = err_codes.into_iter().filter(|ec| ec > &0).collect();
-        
+
         if !non_zero_err_codes.is_empty() {
             return non_zero_err_codes[0];
         }
@@ -160,7 +161,7 @@ async fn open_on_desktop(args: &str) -> u8 {
     let (desktop, cmd) = match args.split_once(' ') {
         Some(args) => args,
         None => {
-            println!("[ERROR] wrong number of arguments.");
+            error!("wrong number of arguments.");
             return 7;
         }
     };
@@ -169,7 +170,7 @@ async fn open_on_desktop(args: &str) -> u8 {
     let desktop = match desktop.parse::<i32>() {
         Ok(i) => format!("{}", i - 1),
         Err(e) => {
-            println!("[ERROR] could not interpret  as a number. got error: {e}");
+            error!("could not interpret  as a number. got error: \"{e}\"");
             return 2;
         }
     };
@@ -191,32 +192,15 @@ async fn send_cmd(cmd: &str) -> u8 {
     let file_path = match get_cmd_file() {
         Some(path) => path,
         None => {
-            println!("[ERROR] Couldn't find the leftwm command.pipe file.");
+            error!("Couldn't find the leftwm command.pipe file.");
             return 5;
         }
     };
 
     let cmd = format!("{cmd}\n");
-    // let mut file = match OpenOptions::new()
-    //     .append(true)
-    //     .open(file_path) {
-    //         Ok(file) => file,
-    //         Err(e) => {
-    //             println!("[ERROR] Couldn't open leftwm commands.pipe for writing: {e}");
-    //             return 5;
-    //         }
-    //     };
-
-    // let mut file = match File::create(file_path).await {
-    //         Ok(file) => file,
-    //         Err(e) => {
-    //             println!("[ERROR] Couldn't open leftwm commands.pipe for writing: {e}");
-    //             return 5;
-    //         }
-    //     };
 
     if let Err(e) = write(file_path, cmd.as_bytes()).await {
-        println!("[ERROR] Couldn't write to leftwm commands.pipe: {e}");
+        error!("Couldn't write to leftwm commands.pipe: {e}");
         5
     } else {
         0
