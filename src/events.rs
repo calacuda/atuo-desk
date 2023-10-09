@@ -216,7 +216,7 @@ async fn make_usb_context(new_devs: &[UsbDevice]) -> Context {
 pub async fn new_usb(return_tx: UnboundedSender<Context>) {
     // println!("new usb");
     let mut interval = time::interval(Duration::from_millis(RESOLUTION * 2));
-    let devices = usb_enumeration::enumerate(None, None)
+    let mut devices = usb_enumeration::enumerate(None, None)
         .into_iter()
         .collect::<HashSet<UsbDevice>>();
 
@@ -227,13 +227,22 @@ pub async fn new_usb(return_tx: UnboundedSender<Context>) {
             .into_iter()
             .collect::<HashSet<UsbDevice>>();
         if tmp_devices != devices {
-            let new_devices = tmp_devices.into_iter().filter(|dev| !devices.contains(dev));
-            match return_tx.send(make_usb_context(&new_devices.collect::<Vec<UsbDevice>>()).await) {
-                Ok(_) => {}
-                Err(e) => {
-                    error!("sending usb context resulted in error: \"{e}\"")
-                }
-            };
+            let new_devices: Vec<UsbDevice> = tmp_devices
+                .clone()
+                .into_iter()
+                .filter(|dev| !devices.contains(dev))
+                .collect();
+
+            devices = tmp_devices;
+
+            if !new_devices.is_empty() {
+                match return_tx.send(make_usb_context(&new_devices).await) {
+                    Ok(_) => {}
+                    Err(e) => {
+                        error!("sending usb context resulted in error: \"{e}\"")
+                    }
+                };
+            }
         }
     }
 }
@@ -505,4 +514,3 @@ pub async fn port_change(
         sleep(Duration::from_millis(100)).await;
     }
 }
-

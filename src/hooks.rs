@@ -179,32 +179,10 @@ fn run_hooks(context: Option<HashMap<String, String>>, event_hook: &[HookID], al
     };
 
     let hooks = get_hooks(event_hook, all_hooks);
-    // let mut cmds = Vec::new();
-    // println!("hooks: {:?}", hooks);
 
     for hook in hooks {
-        // println!("program: {}", &hook.exec);
-        // let exec = &hook.exec;
-        // let mut raw_cmd = Command::new("sh")
-        // .arg("-c")
-        // .arg(format!("{exec} &"))
-        // // .env_clear()
-        // .envs(&context);
-        // // .spawn();
-        // // .expect(&format!("could not run hook: '{}'", hook.exec))
-        // let mut cmd = match raw_cmd.exec() {
-        //     Ok(child_proc) => child_proc,
-        //     Err(reason) => {
-        //         println!("[ERROR] could not run hook: '{}'\ngot error:\n{}", hook.exec, reason);
-        //         // panic!("")
-        //         continue;
-        //     }
-        // };
-        // tokio::task::spawn(async move { let _ = cmd.wait().await; } );
-
         execute_hook(&hook.exec, context.clone())
     }
-    // tokio::task::spawn(async {join_all(cmds)});
 }
 
 fn get_hooks(event_hooks: &[HookID], all_hooks: &Hooks) -> Vec<Hook> {
@@ -251,28 +229,27 @@ pub async fn check_even_hooks(
 
     // port change event
     let (ports_tx, mut ports_rx) = unbounded_channel::<Vec<Context>>();
-    let ports =
-        task::spawn(async move { events::port_change(stop_execs, ignore_web, ports_tx).await });
+    let ports = task::spawn(events::port_change(stop_execs, ignore_web, ports_tx));
 
     // bluetooth device connected event
     let (blt_tx, mut blt_rx) = unbounded_channel::<Context>();
-    let bluetooth_dev = task::spawn(async move { events::blt_dev_conn(blt_tx).await });
+    let bluetooth_dev = task::spawn(events::blt_dev_conn(blt_tx));
 
     // new usb dev event
     let (usb_tx, mut usb_rx) = unbounded_channel::<Context>();
-    let new_usb = task::spawn(async move { events::new_usb(usb_tx).await });
+    let new_usb = task::spawn(events::new_usb(usb_tx));
 
     // change in backlight event
     let (bl_tx, mut bl_rx) = unbounded_channel::<Context>();
-    let backlight = task::spawn(async move { events::backlight_change(bl_tx).await });
+    let backlight = task::spawn(events::backlight_change(bl_tx));
 
     // network (dis)connected event
     let (net_con_tx, mut net_con_rx) = unbounded_channel::<Context>();
-    let net_connected = task::spawn(async move { events::network_connection(net_con_tx).await });
+    let net_connected = task::spawn(events::network_connection(net_con_tx));
 
     // changed wifi network event.
     let (wifi_net_tx, mut wifi_net_rx) = unbounded_channel::<Context>();
-    let network_change = task::spawn(async move { events::wifi_change(wifi_net_tx).await });
+    let network_change = task::spawn(events::wifi_change(wifi_net_tx));
 
     loop {
         // async check for events and messages via thread based message passing

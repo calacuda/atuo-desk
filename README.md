@@ -15,7 +15,7 @@ Desktop automator designed to allow programmatic control of the desktop environm
 - configuring of [layouts](#layouts) that can be done with ease.
 - consistent API and endpoint makes controlling the system easy.
 - simple programatic API so you can write your own scripts to control the WM/DE and system.
-- consistant across different WM and DE allowinf one script to work across mutiple enviornemnts.
+- consistent across different WM and DE allowing one script to work across mutiple enviornemnts.
 - checks for system [events](#event hooks) allowing you to hook your own commands to run when the system state changes.
 
 ## layouts
@@ -69,6 +69,7 @@ There is a temporary solution for detecting changes in port status for event hoo
 - [x] 1. write a [Mycroft](https://mycroft-ai.gitbook.io/docs/) skill to add voice control
 - [x] 2. write a rofi script to search through and select layouts.
 - [ ] 3. add a "procedure", feature. it will be a list of command to run and will be able to be acivated from a layout files or by its self.
+- [ ] 4. and a keystroke parameter to yaml layout files that will send keystrokes to the window. (for qtile this can use the `cmd_simulate_keypress` function from the qtile helper python library, for others it can use xdotool)
 
 ## TODOs
 
@@ -90,6 +91,7 @@ There is a temporary solution for detecting changes in port status for event hoo
 - [x] add leftwm support.
 - [ ] send logs to client and let the client print them as well.
 - [ ] add a `commands` list to the config file. this will be a list of commands to run when the layout is loaded. these commadns should be headless shell commands (commands that do not launch a gui of any sort).
+- [ ] automatically "turn off" all event listeners that have no hooks registered to them.
 
 ## development history and schedule
 
