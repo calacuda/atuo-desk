@@ -59,6 +59,7 @@
             iw
             iwd
             llvmPackages_rocm.clang
+            libclang
             wpa_supplicant
             dbus
           ];
