@@ -92,6 +92,7 @@ There is a temporary solution for detecting changes in port status for event hoo
 - [ ] send logs to client and let the client print them as well.
 - [ ] add a `commands` list to the config file. this will be a list of commands to run when the layout is loaded. these commadns should be headless shell commands (commands that do not launch a gui of any sort).
 - [ ] automatically "turn off" all event listeners that have no hooks registered to them.
+- [ ] depricate iw dependency
 
 ## development history and schedule
 
