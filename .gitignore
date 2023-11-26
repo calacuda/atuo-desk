@@ -195,7 +195,8 @@ Cargo.lock
 go.work
 
 # nix
-flake.lock  # causes direnv to reload every time :(
+flake.lock  
+# causes direnv to reload every time :(
 
 # misc
 *~
