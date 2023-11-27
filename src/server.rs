@@ -189,9 +189,10 @@ async fn handle_client_qtile(
 }
 
 fn is_wm_running(procs: &System, proc_name: &str, wm: &str) -> bool {
+    debug!("is {wm} running");
     for proc in procs.processes_by_exact_name(proc_name) {
-        // println!("{} | {:?}", proc.name(), proc.exe());
-        if proc.name() == wm || proc.exe().ends_with(wm) {
+        // debug!("{} | {:?}", proc.name(), proc.exe());
+        if proc.name() == wm || proc.exe().to_string_lossy().contains(wm) {
             return true;
         }
     }
@@ -208,7 +209,9 @@ pub fn get_running_wm() -> WindowManager {
         WindowManager::NoWM
     }
     // if Path::new(&qtile_soc_fname).exists() {
-    else if is_wm_running(&procs, "qtile", "qtile") {
+    else if is_wm_running(&procs, "qtile", "qtile")
+        || is_wm_running(&procs, ".qtile-wrapped", "python")
+    {
         info!("Running in Qtile mode");
         WindowManager::Qtile
     // } else if Path::new("/tmp/bspwm_0_0-socket").exists() {
@@ -220,6 +223,7 @@ pub fn get_running_wm() -> WindowManager {
         info!("Running in leftwm mode");
         WindowManager::LeftWM
     } else {
+        info!("Running in headless mode");
         WindowManager::Headless
     }
 }
