@@ -9,15 +9,15 @@
     let
       # system should match the system you are running on
       system = "x86_64-linux";
-      rust_overlay = import (builtins.fetchTarball "https://github.com/oxalica/rust-overlay/archive/master.tar.gz");
-      pkgs = import <nixpkgs> { overlays = [ rust_overlay ]; };
-      rustVersion = "latest";
-      #rustVersion = "1.62.0";
-      rust = pkgs.rust-bin.stable.${rustVersion}.default.override {
-        extensions = [
-          "rust-src" # for rust-analyzer
-        ];
-      };
+      # rust_overlay = import (builtins.fetchTarball "https://github.com/oxalica/rust-overlay/archive/master.tar.gz");
+      # pkgs = import <nixpkgs> { overlays = [ rust_overlay ]; };
+      # rustVersion = "latest";
+      # #rustVersion = "1.62.0";
+      # rust = pkgs.rust-bin.stable.${rustVersion}.default.override {
+      #   extensions = [
+      #     "rust-src" # for rust-analyzer
+      #   ];
+      # };
     in
     {
       devShells."${system}".default =
@@ -39,13 +39,10 @@
           packages = with pkgs; [
             gdb
             openssl
-            pkg-config
-            # cargo
-            # rustc
-            rust-analyzer
-            rustfmt
-            clippy
-            rusty-man
+            # libclang
+            clang
+            gcc
+            # glibc
             udev
             xorg.xorgproto
             xorg.libX11
@@ -56,15 +53,25 @@
             xorg.libICE
             xorg.libXi
             xorg.libXtst
+            xorg.x11perf
             iw
             iwd
-            llvmPackages_rocm.clang
-            libclang
             wpa_supplicant
+            # linuxHeaders
+            wirelesstools
             dbus
+            pkg-config
+            rust-analyzer
+            rustfmt
+            clippy
+            rusty-man
+            # rustToolchain  # only use when pulling from rust-toolchain.toml
+            # cargo
+            # rustc
           ];
           shellHook = ''
-            IN_NIX_DEV="yes"
+            export IN_NIX_DEV="yes"
+            export LIBCLANG_PATH="${pkgs.libclang.lib}/lib";
           '';
         };
     };
