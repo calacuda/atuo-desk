@@ -12,7 +12,7 @@ import socket
 import time
 
 
-PATH = "/tmp/desktop-automater"
+PATH = "/tmp/auto-desk"
 # PATH = "/tmp/bspwm_0_0-socket"
 
 s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
