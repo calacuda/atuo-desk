@@ -24,7 +24,7 @@ s.connect(PATH)
 # s.send(b"load-layout TEST")
 # s.send(b"load-layout coding")
 # s.send(b"SERVER-EXIT")
-s.send(b"open-on 5 brave")
+s.send(b"open-on 5 firefox")
 # s.send(b"lock")
 s.shutdown(1)  # tells the server im done sending data and it can reply now.
 # s.setblocking(True)
