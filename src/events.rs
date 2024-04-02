@@ -479,7 +479,7 @@ pub async fn port_change(
                         //     println!("{:?}", port_dat);
                         // }
                     } else {
-                        error!("port sentinal send error-code: {}", port_dat[1]);
+                        error!("port sentinel send error-code: {}", port_dat[1]);
                     }
                 }
 

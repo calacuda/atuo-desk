@@ -3,7 +3,6 @@ use crate::config::OptGenRes;
 use crate::wm_lib;
 use log::{debug, error, trace};
 use serde::{Deserialize, Serialize};
-use serde_json;
 use std::collections::HashMap;
 
 type WMClass = String;
@@ -165,14 +164,14 @@ pub fn make_cmd_data(fname: &str) -> Result<QtileCmdData, u8> {
         Err(n) => return Err(n),
     };
 
-    let mut payload_struc = QtileCmdData::new();
+    let mut payload_struct = QtileCmdData::new();
 
     for desktop in layouts.desktops {
         for program in &desktop.programs {
             match &program.wm_class {
                 Some(class) => {
-                    payload_struc.add_rules(class, &desktop.desktop);
-                    payload_struc.add_queue(&program.name, &program.args);
+                    payload_struct.add_rules(class, &desktop.desktop);
+                    payload_struct.add_queue(&program.name, &program.args);
                 }
                 None => error!(
                     "no wm_class defined for {} in the layout file. could not setup or launch.",
@@ -180,10 +179,10 @@ pub fn make_cmd_data(fname: &str) -> Result<QtileCmdData, u8> {
                 ),
             }
         }
-        payload_struc.add_clear(desktop.clear, &desktop.desktop);
+        payload_struct.add_clear(desktop.clear, &desktop.desktop);
     }
 
-    Ok(payload_struc)
+    Ok(payload_struct)
 }
 
 /// load-layout
@@ -210,10 +209,10 @@ pub async fn load_layout(spath: &str, args: &str) -> u8 {
 }
 
 fn make_payload(fname: &str) -> Result<(String, Vec<String>), u8> {
-    let payload_struc = make_cmd_data(fname)?;
+    let payload_struct = make_cmd_data(fname)?;
 
-    match serde_json::to_string(&payload_struc) {
-        Ok(jsons) => Ok((jsons, payload_struc.queue)),
+    match serde_json::to_string(&payload_struct) {
+        Ok(jsons) => Ok((jsons, payload_struct.queue)),
         Err(e) => {
             error!("got error while serializing to qtile-data to json. error:\"{e}\"");
             Err(4)

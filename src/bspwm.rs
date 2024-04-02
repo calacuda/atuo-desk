@@ -5,7 +5,6 @@ use crate::wm_lib::{DesktopLayout, Program};
 use freedesktop_entry_parser::parse_entry;
 use log::{error, info};
 use procfs::process;
-use shellexpand;
 use std::env::set_current_dir;
 use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;
@@ -20,7 +19,7 @@ fn remove_present(progs: &Vec<Program>, execs: &mut Vec<String>) -> Vec<Program>
         let prog = &get_exec(program).to_lowercase();
         if execs.contains(prog) {
             let i = execs.iter().position(|x| x == prog).unwrap();
-            info!("removeing {} at position {}", prog, i);
+            info!("removing {} at position {}", prog, i);
             execs.remove(i);
         } else {
             programs.push(program.clone());
@@ -72,7 +71,7 @@ fn get_progs(desktop_name: &str, programs: &Vec<Program>, spath: &str) -> Vec<Pr
 }
 
 fn load_layout(spath: &str, args: &str) -> u8 {
-    // loads a layout file and configures the system apropiately.
+    // loads a layout file and configures the system appropriately.
 
     let layout_yaml = match wm_lib::get_layout(args) {
         Ok(layout) => layout,
@@ -81,7 +80,7 @@ fn load_layout(spath: &str, args: &str) -> u8 {
 
     info!("loading layout {args}");
 
-    // stop the window manager from following to the newest window. not actually nessesary.
+    // stop the window manager from following to the newest window. not actually necessary.
     send(spath, "config ignore_ewmh_focus true");
 
     let error_code = load_from_yaml(layout_yaml.desktops, spath);
@@ -244,7 +243,7 @@ fn query(spath: &str, message: &str) -> String {
         }
         Err(e) => {
             error!(
-                "could not connect to bspwm (are you usign the right socket file?). error: \"{e}\""
+                "could not connect to bspwm (are you using the right socket file?). error: \"{e}\""
             );
             String::new()
         }
@@ -367,7 +366,7 @@ fn send(spath: &str, message: &str) -> u8 {
             }
         }
         Err(e) => {
-            error!("could not connect to bspwm (are you usign the right socket file?): \"{e}\"");
+            error!("could not connect to bspwm (are you using the right socket file?): \"{e}\"");
             5
         }
     }

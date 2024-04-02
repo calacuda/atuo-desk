@@ -1,8 +1,6 @@
 #![deny(clippy::all)]
 use log::error;
 use serde::{Deserialize, Serialize};
-use serde_yaml;
-use shellexpand;
 use std::path::Path;
 use std::{collections::HashMap, fs::read_to_string};
 
@@ -33,7 +31,7 @@ pub fn get_layout(fname: &str) -> Result<Conf, u8> {
     let file_path = match get_layout_file(fname) {
         Ok(path) => path,
         Err(_) => {
-            error!("can't load layout stored in \"{fname}\", file doesn't exsist.");
+            error!("can't load layout stored in \"{fname}\", file doesn't exist.");
             return Err(4);
         }
     };

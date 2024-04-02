@@ -207,7 +207,7 @@ pub async fn hooks_switch(
         ("add-hook", Some(hook_data)) => Some((add_hook(args, hook_data).await, None)),
         ("rm-hook", Some(hook_data)) => Some((rm_hook(args, &mut hook_data.db).await, None)),
         ("ls-hook" | "list-hook", Some(hook_data)) => {
-            // TODO: this chould be a table, just like sql output. Thats why its called table.
+            // NOTE: this should be a table, just like sql output. Thats why its called table.
             let table = get_hook(&hook_data.db).await;
             Some((0, Some(table)))
         }
