@@ -2,7 +2,7 @@
 
 ---
 
-Controls Linux tiling window managers and desktop environments. It uses Unix sockets to handle communication with the client program. Development is currently focused on the tiling window manager [LeftWM](https://leftwm.org/).
+Controls Linux tiling window managers and desktop environments. It uses Unix sockets to handle communication with the client program. Development is currently focused on the tiling window manager [Qtile](http://www.qtile.org/).
 
 ---
 
@@ -14,17 +14,17 @@ Desktop automator designed to allow programmatic control of the desktop environm
 
 - configuring of [layouts](#layouts) that can be done with ease.
 - consistent API and endpoint makes controlling the system easy.
-- simple programatic API so you can write your own scripts to control the WM/DE and system.
-- consistent across different WM and DE allowing one script to work across mutiple enviornemnts.
+- simple programmatic API so you can write your own scripts to control the WM/DE and system.
+- consistent across different WM and DE allowing one script to work across mutipple environments.
 - checks for system [events](#event hooks) allowing you to hook your own commands to run when the system state changes.
 
 ## layouts
 
-layouts allow for opening apps on specific workspaces, and optionally clearing that workspace. They also allow for running of arbitrary commands and will soon have the ability to tear them selfs down.
+layouts allow for opening apps on specific workspaces, and optionally clearing that workspace. They also allow for running of arbitrary commands and will soon have the ability to tear themselves down.
 
 ## event hooks
 
-Event hooks allow you to have you own programs or commands run on system events or system state chagnes.
+Event hooks allow you to have you own programs or commands run on system events or system state changes.
 these events include:
 
 - wifi network changes
@@ -33,7 +33,7 @@ these events include:
 - network port status change
 - network connection/disconnection
 
-## Suported Window Managers
+## Supported Window Managers
 
 - [BSPWM](https://github.com/baskerville/bspwm) (support is old but _should_ still work)
 - [Qtile](http://www.qtile.org/) (support is old but _should_ still work)
@@ -54,9 +54,9 @@ see [spec.md](spec.md)
 - gtk-launch
 - xdotool
 
-## currnet state
+## current state
 
-I would describe the currnet state as development but good enough for bassic usage.
+I would describe the current state as good enough for basic usage.
 
 ## port status
 
@@ -90,9 +90,12 @@ There is a temporary solution for detecting changes in port status for event hoo
 - [x] add Qtile support.
 - [x] add leftwm support.
 - [ ] send logs to client and let the client print them as well.
-- [ ] add a `commands` list to the config file. this will be a list of commands to run when the layout is loaded. these commadns should be headless shell commands (commands that do not launch a gui of any sort).
+- [ ] add a `commands` list to the config file. this will be a list of commands to run when the layout is loaded. these commands should be headless shell commands (commands that do not launch a gui of any sort).
 - [ ] automatically "turn off" all event listeners that have no hooks registered to them.
-- [ ] depricate iw dependency
+- [ ] deprecate iw dependency
+- [ ] add support for [Hyprland](https://github.com/hyprwm/Hyprland)
+    - [ ] make hyprland plugin to integrate with Auto-desk
+    - [ ] add Auto-desk controls for Hyprland
 
 ## development history and schedule
 
@@ -102,7 +105,10 @@ There is a temporary solution for detecting changes in port status for event hoo
 - [x] 4. write systemd service.
 - [x] 5. add mycroft support. ([repo](https://github.com/calacuda/mycroft-linux-control-skill))
 - [x] 6. add python module to be imported from qtile conf.
-- [x] 7. add leftwm suport.
+- [x] 7. add leftwm support.
 - [x] 8. write rofi layout script. ([repo]())
 - [ ] 9. finish port sensor. <= we are working on this. (everything below this is subject to change)
-- [ ] 10. add finishing touches to bspwm support.
+- [ ] 10. add finishing touches to BSPWM/LeftWM/Qtile support.
+    - [ ] BSPWM
+    - [ ] LeftWM
+    - [ ] Qtile
