@@ -16,22 +16,10 @@ Desktop automator designed to allow programmatic control of the desktop environm
 - consistent API and endpoint makes controlling the system easy.
 - simple programmatic API so you can write your own scripts to control the WM/DE and system.
 - consistent across different WM and DE allowing one script to work across mutipple environments.
-- checks for system [events](#event hooks) allowing you to hook your own commands to run when the system state changes.
 
 ## layouts
 
 layouts allow for opening apps on specific workspaces, and optionally clearing that workspace. They also allow for running of arbitrary commands and will soon have the ability to tear themselves down.
-
-## event hooks
-
-Event hooks allow you to have you own programs or commands run on system events or system state changes.
-these events include:
-
-- wifi network changes
-- bluetooth device connection/disconnection
-- USB device connection/disconnection
-- network port status change
-- network connection/disconnection
 
 ## Supported Window Managers
 
@@ -57,10 +45,6 @@ see [spec.md](spec.md)
 ## current state
 
 I would describe the current state as good enough for basic usage.
-
-## port status
-
-There is a temporary solution for detecting changes in port status for event hooks. However, **I DO NOT LIKE THIS SOLUTION AND IT IS TEMPORARY** as it is a combersum, cobled together from popsicle sticks and chewing gum, and just over all not a great solution. I'm using it because is is FAR more resource efficient compared to the naive solution -- that is to say, checking port status in an infinite loop and comparing results. It relies on [ftrace](https://www.kernel.org/doc/html/v4.18/trace/ftrace.html) (a linux kernel module to track/trace kernel and system function calls). I intend to change this in the future but for now, it works well enough for testing.
 
 ## planned features/ideas for the future
 
@@ -91,8 +75,7 @@ There is a temporary solution for detecting changes in port status for event hoo
 - [x] add leftwm support.
 - [ ] send logs to client and let the client print them as well.
 - [ ] add a `commands` list to the config file. this will be a list of commands to run when the layout is loaded. these commands should be headless shell commands (commands that do not launch a gui of any sort).
-- [ ] automatically "turn off" all event listeners that have no hooks registered to them.
-- [ ] deprecate iw dependency
+- [x] deprecate iw dependency
 - [ ] add support for [Hyprland](https://github.com/hyprwm/Hyprland)
     - [ ] make hyprland plugin to integrate with Auto-desk
     - [ ] add Auto-desk controls for Hyprland
