@@ -2,13 +2,12 @@ use crate::bspwm;
 use crate::common;
 use crate::config;
 use crate::config::{GenericRes, OptGenRes};
-use crate::hooks;
+// use crate::hooks;
 use crate::leftwm;
-use crate::msgs;
+// use crate::msgs;
 use crate::qtile;
 use futures::future::BoxFuture;
 use log::{debug, error, info, trace};
-use std::fs::create_dir;
 use sysinfo::{ProcessExt, System, SystemExt};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{UnixListener, UnixStream};
@@ -75,7 +74,7 @@ async fn switch_board<'t>(
     cmd: &'t str,
     args: &'t str,
     spath: &'t str,
-    maybe_hook_data: &'t mut Option<hooks::HookData>,
+    // maybe_hook_data: &'t mut Option<hooks::HookData>,
     layout: &'t mut qtile::QtileCmdData,
 ) -> GenericRes {
     let mut futures: Vec<BoxFuture<'t, OptGenRes>> = Vec::new();
@@ -104,8 +103,8 @@ async fn switch_board<'t>(
     futures.push(Box::pin(common::sysctl_switch(cmd)));
     #[cfg(feature = "media")]
     futures.push(Box::pin(common::media_switch(cmd, args)));
-    #[cfg(feature = "hooks")]
-    futures.push(Box::pin(hooks::hooks_switch(cmd, args, maybe_hook_data)));
+    // #[cfg(feature = "hooks")]
+    // futures.push(Box::pin(hooks::hooks_switch(cmd, args, maybe_hook_data)));
 
     for future in futures {
         if let Some(res) = future.await {
@@ -130,14 +129,14 @@ async fn handle_client_gen(
     cmd: String,
     args: String,
     wm: &WindowManager,
-    hooks: &mut Option<hooks::HookData>,
+    // hooks: &mut Option<hooks::HookData>,
     // _config_hooks: &config::Hooks,
     mut stream: UnixStream,
     spath: &str,
     layout: &mut qtile::QtileCmdData,
 ) {
     // handle comand here
-    let (ec, message) = switch_board(wm, &cmd, &args, spath, hooks, layout).await;
+    let (ec, message) = switch_board(wm, &cmd, &args, spath, layout).await;
     // let mesg = match message {
     //     Some(mesg) => mesg,
     //     None =>
@@ -152,7 +151,7 @@ async fn handle_client_qtile(
     wm: &WindowManager,
     mut stream: UnixStream,
     layout: &mut qtile::QtileCmdData,
-    hook_data: &mut Option<hooks::HookData>,
+    // hook_data: &mut Option<hooks::HookData>,
     spath: &str,
 ) -> Option<qtile::QtileCmdData> {
     // handle comand here
@@ -180,7 +179,7 @@ async fn handle_client_qtile(
         }
         None => {
             trace!("qtile::qtile_api(...) => None");
-            let (ec, message) = switch_board(wm, &cmd, &args, spath, hook_data, layout).await;
+            let (ec, message) = switch_board(wm, &cmd, &args, spath, layout).await;
             write_shutdown(&mut stream, ec, message).await;
             drop(stream);
             None
@@ -238,36 +237,36 @@ async fn recv_loop(configs: config::Config) -> std::io::Result<()> {
     let listener = UnixListener::bind(program_socket)?;
     let mut layout: qtile::QtileCmdData = qtile::QtileCmdData::new();
 
-    let (mut hooks, hook_checking) =
-        if Some(true) == configs.hooks.listen && cfg!(feature = "hooks") {
-            let (control_tx, mut control_rx) = tokio::sync::mpsc::channel::<hooks::HookDB>(1);
-            let (cmd_tx, mut cmd_rx) = tokio::sync::mpsc::channel::<msgs::EventCmd>(1);
-            let stop_exec = configs.hooks.exec_ignore.clone();
-            let conf_hooks = configs.hooks.hooks.clone();
-            // make a runtime dir for auto-desk
-            let _ = create_dir(config::get_pipe_d());
-            let hook_checking = task::spawn(async move {
-                hooks::check_even_hooks(
-                    &mut control_rx,
-                    &mut cmd_rx,
-                    stop_exec,
-                    conf_hooks,
-                    configs.hooks.ignore_web,
-                )
-                .await;
-            });
-            let hooks_db = hooks::HookDB::new();
-            (
-                Some(hooks::HookData {
-                    send: control_tx,
-                    cmd: cmd_tx,
-                    db: hooks_db,
-                }),
-                Some(hook_checking),
-            )
-        } else {
-            (None, None)
-        };
+    // let (mut hooks, hook_checking) =
+    //     if Some(true) == configs.hooks.listen && cfg!(feature = "hooks") {
+    //         let (control_tx, mut control_rx) = tokio::sync::mpsc::channel::<hooks::HookDB>(1);
+    //         let (cmd_tx, mut cmd_rx) = tokio::sync::mpsc::channel::<msgs::EventCmd>(1);
+    //         let stop_exec = configs.hooks.exec_ignore.clone();
+    //         let conf_hooks = configs.hooks.hooks.clone();
+    //         // make a runtime dir for auto-desk
+    //         let _ = create_dir(config::get_pipe_d());
+    //         let hook_checking = task::spawn(async move {
+    //             hooks::check_even_hooks(
+    //                 &mut control_rx,
+    //                 &mut cmd_rx,
+    //                 stop_exec,
+    //                 conf_hooks,
+    //                 configs.hooks.ignore_web,
+    //             )
+    //             .await;
+    //         });
+    //         let hooks_db = hooks::HookDB::new();
+    //         (
+    //             Some(hooks::HookData {
+    //                 send: control_tx,
+    //                 cmd: cmd_tx,
+    //                 db: hooks_db,
+    //             }),
+    //             Some(hook_checking),
+    //         )
+    //     } else {
+    //         (None, None)
+    //     };
 
     let wm = get_running_wm();
 
@@ -290,7 +289,7 @@ async fn recv_loop(configs: config::Config) -> std::io::Result<()> {
                             &wm,
                             stream,
                             &mut layout,
-                            &mut hooks,
+                            // &mut hooks,
                             program_socket,
                         )
                         .await
@@ -312,7 +311,7 @@ async fn recv_loop(configs: config::Config) -> std::io::Result<()> {
                             cmd,
                             args,
                             &wm,
-                            &mut hooks,
+                            // &mut hooks,
                             stream,
                             wm_socket,
                             &mut layout,
@@ -332,15 +331,15 @@ async fn recv_loop(configs: config::Config) -> std::io::Result<()> {
     info!("killing unix socket");
     drop(listener);
     info!("unix socket killed");
-    info!("stopping event listeners");
-    if let Some(h_dat) = hooks {
-        let _ = h_dat.cmd.send(msgs::EventCmd::Exit).await;
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-    }
-    if let Some(hook_checking) = hook_checking {
-        hook_checking.abort()
-    }
-    info!("event listeners stopped");
+    // info!("stopping event listeners");
+    // if let Some(h_dat) = hooks {
+    //     let _ = h_dat.cmd.send(msgs::EventCmd::Exit).await;
+    //     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    // }
+    // if let Some(hook_checking) = hook_checking {
+    //     hook_checking.abort()
+    // }
+    // info!("event listeners stopped");
     Ok(())
 }
 

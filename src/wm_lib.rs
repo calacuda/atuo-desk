@@ -62,12 +62,12 @@ fn get_layout_file(file_name: &str) -> Result<String, ()> {
     //     },
     // )
     // .to_string();
-    #[cfg(feature = "testing")]
-    {
-        if Path::new(file_name).exists() {
-            return Ok(Path::new(file_name).to_str().unwrap().to_string());
-        }
-    }
+    // #[cfg("test")]
+    // {
+    //     if Path::new(file_name).exists() {
+    //         return Ok(Path::new(file_name).to_str().unwrap().to_string());
+    //     }
+    // }
 
     // TODO: pull path from config file
     let mut layout_dir = shellexpand::tilde("~/.config/auto-desk/layouts/").to_string();
