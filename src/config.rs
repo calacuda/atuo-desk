@@ -1,5 +1,4 @@
 use serde::Deserialize;
-use std::collections::HashSet;
 use std::fs;
 
 pub const PORT_PIPE: &str = "auto-desk.ports";
@@ -7,7 +6,7 @@ pub const PORT_PIPE: &str = "auto-desk.ports";
 #[derive(Deserialize, Clone)]
 pub struct Config {
     pub server: Server,
-    pub hooks: Hooks,
+    // pub hooks: Hooks,
 }
 
 #[derive(Deserialize, Clone)]
@@ -16,19 +15,19 @@ pub struct Server {
     pub wm_socket: String,
 }
 
-#[derive(Deserialize, Clone)]
-pub struct Hooks {
-    pub exec_ignore: HashSet<String>,
-    pub ignore_web: bool,
-    pub listen: Option<bool>,
-    pub hooks: Vec<Hook>,
-}
+// #[derive(Deserialize, Clone)]
+// pub struct Hooks {
+//     pub exec_ignore: HashSet<String>,
+//     pub ignore_web: bool,
+//     pub listen: Option<bool>,
+//     pub hooks: Vec<Hook>,
+// }
 
-#[derive(Deserialize, Clone, Debug)]
-pub struct Hook {
-    pub event: String, // TODO: see if i can make this an enum
-    pub exec: String,
-}
+// #[derive(Deserialize, Clone, Debug)]
+// pub struct Hook {
+//     pub event: String, // TODO: make this an enum
+//     pub exec: String,
+// }
 
 pub type GenericRes = (u8, Option<String>);
 pub type OptGenRes = Option<GenericRes>;
