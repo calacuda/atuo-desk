@@ -8,4 +8,5 @@ ExecStart=auto-desk start
 ExecStop=auto-desk stop
 
 [Install]
-WantedBy=multi-user.target
+# WantedBy=multi-user.target
+WantedBy=default.target
