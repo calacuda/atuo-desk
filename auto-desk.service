@@ -1,5 +1,5 @@
 # designed to be run with systemctl start --user desktop-automater
-# file location: ~/.config/systemd/user/desktop-automater.service
+# file location: ~/.config/systemd/user/auto-desk.service
 [Unit]
 Description=desktop-automater
 
